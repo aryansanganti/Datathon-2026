@@ -7,11 +7,15 @@ const SyncState = require('../models/SyncState');
 const oauthRoutes = require('./oauth');
 const fetchRoutes = require('./fetch');
 const syncRoutes = require('./sync');
+const rolesRoutes = require('./roles');
+const graphRoutes = require('./graph');
 
 router.use('/oauth', oauthRoutes);
 router.use('/fetch', fetchRoutes);
 router.use('/sync', syncRoutes);
 router.use('/allocation', require('./allocation'));
+router.use('/roles', rolesRoutes);
+router.use('/graph', graphRoutes);
 router.use('/webhooks', require('./webhooks'));
 router.use('/insights', require('./insights'));
 

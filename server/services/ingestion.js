@@ -35,6 +35,12 @@ async function ensureUser(source, sourceUserId, displayName, email) {
       source_user_id: sourceUserId,
       display_name: displayName,
       email: email || undefined,
+      role: 'Developer', // Default role for GitHub users
+      department: 'Engineering',
+      team: 'Development Team',
+      seniority_level: 2,
+      employment_type: 'Full-time',
+      hourly_rate: 60,
     });
   }
   return user._id;

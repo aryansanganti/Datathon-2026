@@ -47,7 +47,13 @@ async function ingestIssues(projectKey) {
                                 source: 'Jira',
                                 source_user_id: accountId,
                                 display_name: i.fields.assignee.displayName,
-                                email: i.fields.assignee.emailAddress // May be hidden depending on privacy
+                                email: i.fields.assignee.emailAddress, // May be hidden depending on privacy
+                                role: 'Developer', // Default role
+                                department: 'Engineering',
+                                team: 'Development Team',
+                                seniority_level: 2,
+                                employment_type: 'Full-time',
+                                hourly_rate: 60,
                             });
                         }
                         assigneeId = user._id;
