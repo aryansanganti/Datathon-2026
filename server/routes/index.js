@@ -11,6 +11,7 @@ const syncRoutes = require('./sync');
 router.use('/oauth', oauthRoutes);
 router.use('/fetch', fetchRoutes);
 router.use('/sync', syncRoutes);
+router.use('/allocation', require('./allocation'));
 router.use('/webhooks', require('./webhooks'));
 router.use('/insights', require('./insights'));
 

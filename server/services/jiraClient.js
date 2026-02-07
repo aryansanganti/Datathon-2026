@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { withRetry } = require('../utils/retry');
 
 const JIRA_DOMAIN = process.env.JIRA_DOMAIN || (process.env.JIRA_BASE_URL ? process.env.JIRA_BASE_URL.replace('https://', '').replace(/\/$/, '') : '');
 const JIRA_EMAIL = process.env.JIRA_EMAIL;
@@ -9,8 +10,8 @@ const auth = {
     password: JIRA_API_TOKEN,
 };
 
-// Base URL for Jira Cloud API v3
 const baseURL = `https://${JIRA_DOMAIN}/rest/api/3`;
+const agileURL = `https://${JIRA_DOMAIN}/rest/agile/1.0`;
 
 // function searchIssues(jql, startAt = 0, maxResults = 50) {
 //     try {
@@ -54,14 +55,11 @@ async function searchIssues(jql, nextPageToken = undefined, maxResults = 50) {
     }
 }
 
-// In Jira Cloud, sprints belong to boards
 async function fetchSprints(boardId, startAt = 0) {
-    // Determine agile API URL (it's different from core API)
-    const agileURL = `https://${JIRA_DOMAIN}/rest/agile/1.0`;
     try {
         const res = await axios.get(`${agileURL}/board/${boardId}/sprint`, {
             auth,
-            params: { startAt }
+            params: { startAt },
         });
         return res.data;
     } catch (err) {
@@ -70,4 +68,96 @@ async function fetchSprints(boardId, startAt = 0) {
     }
 }
 
-module.exports = { searchIssues, fetchSprints };
+async function fetchProjects() {
+    const res = await axios.get(`${baseURL}/project`, { auth });
+    return Array.isArray(res.data) ? res.data : (res.data.values || res.data || []);
+}
+
+async function fetchBoards(projectKeyOrId) {
+    const res = await axios.get(`${agileURL}/board`, {
+        auth,
+        params: { projectKeyOrId },
+    });
+    return res.data.values || [];
+}
+
+async function createSprint(boardId, name, startDate, endDate) {
+    return withRetry(
+        () =>
+            axios.post(
+                `${agileURL}/sprint`,
+                {
+                    name,
+                    startDate,
+                    endDate,
+                    originBoardId: Number(boardId),
+                },
+                { auth }
+            ),
+        { maxAttempts: 3, baseMs: 1000 }
+    ).then((r) => r.data);
+}
+
+async function createIssue(projectKey, summary, description, issueType, assigneeAccountId) {
+    const body = {
+        fields: {
+            project: { key: projectKey },
+            summary: summary || 'Untitled',
+            description: description
+                ? {
+                      type: 'doc',
+                      version: 1,
+                      content: [
+                          {
+                              type: 'paragraph',
+                              content: [{ type: 'text', text: description }],
+                          },
+                      ],
+                  }
+                : undefined,
+            issuetype: { name: issueType || 'Task' },
+        },
+    };
+    if (assigneeAccountId) body.fields.assignee = { accountId: assigneeAccountId };
+    return withRetry(
+        () => axios.post(`${baseURL}/issue`, body, { auth }),
+        { maxAttempts: 3, baseMs: 1000 }
+    ).then((r) => r.data);
+}
+
+async function moveIssuesToSprint(sprintId, issueKeys) {
+    return withRetry(
+        () =>
+            axios.post(
+                `${agileURL}/sprint/${sprintId}/issue`,
+                { issues: issueKeys },
+                { auth }
+            ),
+        { maxAttempts: 3, baseMs: 1000 }
+    );
+}
+
+async function getMyself() {
+    const res = await axios.get(`${baseURL}/myself`, { auth });
+    return res.data;
+}
+
+async function searchUsers(query) {
+    const res = await axios.get(`${baseURL}/user/search`, {
+        auth,
+        params: { query },
+    });
+    return res.data || [];
+}
+
+module.exports = {
+    searchIssues,
+    fetchSprints,
+    fetchProjects,
+    fetchBoards,
+    createSprint,
+    createIssue,
+    moveIssuesToSprint,
+    getMyself,
+    searchUsers,
+};
