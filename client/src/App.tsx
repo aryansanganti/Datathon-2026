@@ -52,6 +52,42 @@ function App() {
     window.location.href = `${API}/oauth/github`
   }
 
+  const runAllocation = async () => {
+    setAllocationError(null)
+    setAllocationResult(null)
+    setAllocationLoading(true)
+    try {
+      const r = await fetch(`${API}/allocation/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_key: allocationProjectKey,
+          board_id: Number(allocationBoardId) || undefined,
+          sprint_name: allocationSprintName,
+          sprint_duration_days: allocationDurationDays,
+        }),
+      })
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || data.message || "Request failed")
+      setAllocationResult(data)
+      fetch(`${API}/allocation/history?limit=5`)
+        .then((res) => res.json())
+        .then(setAllocationHistory)
+        .catch(() => {})
+    } catch (e) {
+      setAllocationError(e instanceof Error ? e.message : "Allocation failed")
+    } finally {
+      setAllocationLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetch(`${API}/allocation/history?limit=5`)
+      .then((r) => r.json())
+      .then(setAllocationHistory)
+      .catch(() => {})
+  }, [])
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center p-6 gap-6">
       <h1 className="text-2xl font-bold text-foreground">Data Integration Hub</h1>

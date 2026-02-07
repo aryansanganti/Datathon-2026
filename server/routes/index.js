@@ -13,6 +13,7 @@ const graphRoutes = require('./graph');
 router.use('/oauth', oauthRoutes);
 router.use('/fetch', fetchRoutes);
 router.use('/sync', syncRoutes);
+router.use('/allocation', require('./allocation'));
 router.use('/roles', rolesRoutes);
 router.use('/graph', graphRoutes);
 router.use('/webhooks', require('./webhooks'));
