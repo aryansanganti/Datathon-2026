@@ -20,23 +20,30 @@ const baseURL = `https://${JIRA_DOMAIN}/rest/api/3`;
 // }
 
 // NEW IMPLEMENTATION for /rest/api/3/search/jql
-async function searchIssues(jql, startAt = 0, maxResults = 50) {
+// NEW IMPLEMENTATION for /rest/api/3/search/jql
+async function searchIssues(jql, nextPageToken = undefined, maxResults = 50) {
     try {
         // We use the derived JIRA_DOMAIN or parse it from baseURL if needed
         // Note: baseURL handles the domain part.
         // Endpoint is /search/jql
-        // Response format: { issues: [], isLast: boolean, ... } - NO total
-        const res = await axios.post(`${baseURL}/search/jql`, {
+        // Response format: { issues: [], nextPageToken: "...", isLast: boolean }
+
+        const payload = {
             jql,
-            startAt,
             maxResults,
             fields: ['key', 'summary', 'status', 'assignee', 'created', 'updated', 'priority', 'customfield_10020']
-        }, { auth });
+        };
+
+        if (nextPageToken) {
+            payload.nextPageToken = nextPageToken;
+        }
+
+        const res = await axios.post(`${baseURL}/search/jql`, payload, { auth });
 
         return {
             issues: res.data.issues || [],
-            isLast: res.data.isLast,
-            total: res.data.total || 0 // Might be missing, handle in ingestion
+            nextPageToken: res.data.nextPageToken,
+            isLast: res.data.isLast
         };
     } catch (err) {
         console.error('Jira search error:', err.message);

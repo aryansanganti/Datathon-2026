@@ -16,18 +16,22 @@ async function ingestIssues(projectKey) {
     // Find last sync
     const syncState = await SyncState.findOne({ source: SOURCE, entity: 'issues' });
     let jql = `project = ${projectKey}`;
-    if (syncState && syncState.last_sync_at) {
-        const lastSync = syncState.last_sync_at.toISOString().split('T')[0]; // simple Query
-        jql += ` AND updated >= "${lastSync}"`;
-    }
+    // Force full sync for debug
+    // if (syncState && syncState.last_sync_at) {
+    //     const lastSync = syncState.last_sync_at.toISOString().split('T')[0]; // simple Query
+    //     jql += ` AND updated >= "${lastSync}"`;
+    // }
     jql += ' ORDER BY updated ASC';
 
-    let startAt = 0;
+    let nextPageToken = undefined;
     let hasMore = true;
+
+    // First request has no token. Subsequent requests use the token from previous response.
+    // If response has no token, or isLast is true, we stop.
 
     while (hasMore) {
         try {
-            const result = await searchIssues(jql, startAt);
+            const result = await searchIssues(jql, nextPageToken);
             const issues = result.issues || [];
 
             for (const i of issues) {
@@ -48,11 +52,6 @@ async function ingestIssues(projectKey) {
                         }
                         assigneeId = user._id;
                     }
-
-                    // Extract sprint info if available (simplified)
-                    // customfield_10020 is array of sprint objects in recent Jira versions
-                    let sprintId = undefined;
-                    // Logic to parse sprint field would go here
 
                     await Issue.findOneAndUpdate(
                         { issue_id: i.id },
@@ -75,13 +74,14 @@ async function ingestIssues(projectKey) {
                 }
             }
 
-            startAt += issues.length;
-            // Use isLast if available, otherwise fallback to standard check if total exists (or issue length check)
-            if (result.isLast !== undefined) {
-                if (result.isLast) hasMore = false;
-            } else if (result.total && startAt >= result.total) {
+            if (result.nextPageToken) {
+                nextPageToken = result.nextPageToken;
+            } else {
                 hasMore = false;
-            } else if (issues.length === 0) {
+            }
+
+            // Safety check
+            if (issues.length === 0 && !result.nextPageToken) {
                 hasMore = false;
             }
 
@@ -107,7 +107,19 @@ async function ingestIssues(projectKey) {
         { upsert: true }
     );
 
-    return { success: totalSuccess, failed: totalFail };
+    let debugInfo = { jql };
+    try {
+        debugInfo.firstResultCount = (await searchIssues(jql, undefined, 1)).issues.length;
+    } catch (e) {
+        debugInfo.error = e.message;
+        debugInfo.apiError = e.response ? e.response.data : 'No response data';
+    }
+
+    return {
+        success: totalSuccess,
+        failed: totalFail,
+        debug: debugInfo
+    };
 }
 
 module.exports = { ingestIssues };

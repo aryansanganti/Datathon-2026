@@ -38,14 +38,13 @@ async function test() {
         }, { auth });
         console.log('Result 1 count:', res1.data.issues.length);
 
-        console.log('\nQuery 2: "project = SCRUM" with startAt: 0');
-        const res2 = await axios.post(`https://${JIRA_DOMAIN}/rest/api/3/search/jql`, {
-            jql: 'project = SCRUM AND created >= -365d',
-            maxResults: 5,
-            startAt: 0,
-            fields: ['key']
+        console.log('\nQuery 5: Full Payload from jiraClient.js');
+        const res5 = await axios.post(`https://${JIRA_DOMAIN}/rest/api/3/search/jql`, {
+            jql: 'project = SCRUM ORDER BY updated ASC',
+            maxResults: 10,
+            fields: ['key', 'summary', 'status', 'assignee', 'created', 'updated', 'priority', 'customfield_10020']
         }, { auth });
-        console.log('Result 2 count:', res2.data.issues.length);
+        console.log('Result 5 count:', res5.data.issues.length);
 
         console.log('Issues found in search:', searchRes.data.issues.length);
         if (searchRes.data.issues.length > 0) {
