@@ -16,6 +16,7 @@ const fetchRoutes = require('./fetch');
 const syncRoutes = require('./sync');
 const rolesRoutes = require('./roles');
 const graphRoutes = require('./graph');
+const insightsRoutes = require('./insights');
 
 router.use('/oauth', oauthRoutes);
 router.use('/fetch', fetchRoutes);
@@ -24,8 +25,10 @@ router.use('/allocation', require('./allocation'));
 router.use('/roles', rolesRoutes);
 router.use('/graph', graphRoutes);
 router.use('/webhooks', require('./webhooks'));
-router.use('/insights', require('./insights'));
+router.use('/insights', insightsRoutes);
 router.use('/smart-allocate', require('./smartAllocate'));
+router.use('/finance', require('./finance'));
+router.use('/hr', require('./hr'));
 
 // Health: include DB check
 router.get('/health', async (req, res) => {

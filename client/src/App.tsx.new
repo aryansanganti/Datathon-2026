@@ -1,0 +1,110 @@
+import { useEffect, useState } from "react"
+import { MemoryRouter } from "react-router-dom"
+import { RoleManagement } from "@/components/RoleManagement"
+import { KnowledgeGraph3D } from "@/components/KnowledgeGraph3D"
+import { Dashboard } from "@/components/Dashboard"
+import SmartAllocate from "@/pages/SmartAllocate"
+import DelayPrediction from "@/pages/DelayPrediction"
+
+const API = "/api"
+
+// Allocation data type for passing between SmartAllocate and DelayPrediction
+interface AllocationData {
+  tasks: {
+    id: string;
+    title: string;
+    required_skills: string[];
+    estimated_hours: number;
+    assigned_employee_ids: string[];
+    status: string;
+  }[];
+  employees: {
+    id: string;
+    name: string;
+    role: string;
+    tech_stack: string[];
+    hourly_rate: number;
+    workload: number;
+  }[];
+  deadline_weeks: number;
+  budget: number;
+  total_hours: number;
+}
+
+type Tab = 'dashboard' | 'roles' | 'graph' | 'smart-allocate' | 'delay-prediction'
+
+function App() {
+  const [githubConnected, setGithubConnected] = useState<boolean | null>(null)
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard')
+  const [allocationData, setAllocationData] = useState<AllocationData | null>(null)
+
+  useEffect(() => {
+    fetch(`${API}/oauth/github/status`)
+      .then((r) => r.json())
+      .then((d) => setGithubConnected(d.connected))
+      .catch(() => setGithubConnected(false))
+  }, [])
+
+  const connectGitHub = () => {
+    window.location.href = `${API}/oauth/github`
+  }
+
+  // Full-screen views (graph)
+  if (activeTab === 'graph') {
+    return (
+      <div className="fixed inset-0 z-50">
+        <KnowledgeGraph3D onBack={() => setActiveTab('dashboard')} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {activeTab === 'dashboard' && (
+        <Dashboard
+          onNavigate={(tab) => setActiveTab(tab as Tab)}
+          githubConnected={githubConnected}
+          onConnectGitHub={connectGitHub}
+        />
+      )}
+
+      {activeTab === 'roles' && (
+        <div className="max-w-7xl mx-auto p-6">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className="mb-6 flex items-center gap-2 px-4 py-2 border-2 border-foreground bg-foreground text-background font-mono text-xs uppercase tracking-wider hover:opacity-90 transition-opacity"
+          >
+            ← Back to Dashboard
+          </button>
+          <RoleManagement />
+        </div>
+      )}
+
+      {activeTab === 'smart-allocate' && (
+        <div className="w-full">
+          <MemoryRouter>
+            <SmartAllocate 
+              onNavigateToDelay={(data) => {
+                setAllocationData(data);
+                setActiveTab('delay-prediction');
+              }}
+            />
+          </MemoryRouter>
+        </div>
+      )}
+
+      {activeTab === 'delay-prediction' && (
+        <div className="w-full">
+          <MemoryRouter initialEntries={[{ pathname: '/delay-prediction', state: { allocation: allocationData } }]}>
+            <DelayPrediction 
+              onBack={() => setActiveTab('smart-allocate')}
+              allocationDataProp={allocationData}
+            />
+          </MemoryRouter>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default App

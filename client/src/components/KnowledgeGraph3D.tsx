@@ -1,7 +1,29 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react"
-import { Button } from "@/components/ui/button"
+import { motion, AnimatePresence } from "framer-motion"
 import ForceGraph3D from "react-force-graph-3d"
 import * as THREE from "three"
+import { 
+  Search, 
+  RefreshCw, 
+  Target, 
+  X, 
+  ChevronDown,
+  ChevronRight,
+  Users,
+  GitCommit,
+  FileText,
+  Ticket,
+  AlertTriangle,
+  Flame,
+  DollarSign,
+  Zap,
+  Layers,
+  Eye,
+  EyeOff,
+  Info,
+  ArrowLeft,
+  Link2
+} from "lucide-react"
 
 const API = "/api"
 
@@ -38,7 +60,6 @@ interface GraphNode {
   status?: string
   priority?: string
   story_points?: number
-  // Force graph properties
   x?: number
   y?: number
   z?: number
@@ -130,101 +151,230 @@ interface VelocityData {
 }
 
 // ============================================
-// COLOR SCHEMES & CONSTANTS
+// DESIGN SYSTEM COLORS
 // ============================================
 
 const NODE_COLORS: Record<string, string> = {
-  developer: "#3b82f6", // blue-500
-  commit: "#8b5cf6",    // violet-500
-  ticket: "#10b981",    // emerald-500
-  file: "#f59e0b",      // amber-500
-  default: "#6b7280"    // gray-500
+  developer: "#0a0a0a",
+  commit: "#525252",
+  ticket: "#0a0a0a",
+  file: "#737373",
+  default: "#a3a3a3"
+}
+
+const ACCENT_COLORS: Record<string, string> = {
+  developer: "#22c55e",
+  commit: "#a855f7",
+  ticket: "#3b82f6",
+  file: "#f59e0b",
+  default: "#6b7280"
 }
 
 const NODE_SIZES: Record<string, number> = {
-  developer: 8,
-  commit: 4,
-  ticket: 6,
-  file: 3
+  developer: 10,
+  commit: 5,
+  ticket: 8,
+  file: 4
 }
 
 const LINK_COLORS: Record<string, string> = {
-  AUTHORED: "#3b82f6",
-  LINKED_TO: "#10b981",
+  AUTHORED: "#22c55e",
+  LINKED_TO: "#3b82f6",
   MODIFIED: "#f59e0b",
   ASSIGNED_TO: "#ef4444",
   REFERENCES: "#a855f7",
   BELONGS_TO: "#06b6d4",
   MEMBER_OF: "#ec4899",
   HAS_SKILL: "#84cc16",
-  default: "#9ca3af"
+  default: "#404040"
 }
 
-// Default fallback color
-const DEFAULT_COLOR = "#9ca3af"
+// ============================================
+// ANIMATION VARIANTS
+// ============================================
 
-// Helper to create text sprites
-function createSpriteText(text: string, color: string, fontSize: number = 14) {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
+const slideUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 }
+}
 
-  const font = `bold ${fontSize}px Sans-Serif`;
-  ctx.font = font;
-  
-  // Calculate text width
-  const metrics = ctx.measureText(text);
-  const textWidth = metrics.width;
-  const padding = 10;
-  
-  // Resize canvas
-  canvas.width = textWidth + padding;
-  canvas.height = fontSize + padding;
-  
-  // Draw text
-  ctx.font = font; // Reset font after resize
-  ctx.fillStyle = color;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  
-  // Add shadow for better visibility
-  ctx.shadowColor = 'rgba(0,0,0,0.8)';
-  ctx.shadowBlur = 4;
-  
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter;
+function createNodeMesh(node: GraphNode, highlightSet: Set<string>) {
+  const nodeType = node.type?.toLowerCase() || 'default'
+  const size = NODE_SIZES[nodeType] || 5
+  const baseColor = NODE_COLORS[nodeType] || NODE_COLORS.default
+  const accentColor = ACCENT_COLORS[nodeType] || ACCENT_COLORS.default
   
-  const material = new THREE.SpriteMaterial({ 
-    map: texture, 
+  const group = new THREE.Group()
+  
+  // Main sphere - dark with accent ring
+  const geometry = new THREE.SphereGeometry(size, 32, 32)
+  const material = new THREE.MeshPhongMaterial({
+    color: baseColor,
+    transparent: highlightSet.size > 0 && !highlightSet.has(node.id),
+    opacity: highlightSet.size > 0 && !highlightSet.has(node.id) ? 0.2 : 1,
+    shininess: 100
+  })
+  const mesh = new THREE.Mesh(geometry, material)
+  group.add(mesh)
+  
+  // Accent ring
+  const ringGeometry = new THREE.TorusGeometry(size * 1.2, size * 0.15, 8, 32)
+  const ringMaterial = new THREE.MeshBasicMaterial({
+    color: accentColor,
     transparent: true,
-    depthWrite: false, // Don't block other objects
-  });
+    opacity: highlightSet.size > 0 && !highlightSet.has(node.id) ? 0.1 : 0.8
+  })
+  const ring = new THREE.Mesh(ringGeometry, ringMaterial)
+  ring.rotation.x = Math.PI / 2
+  group.add(ring)
   
-  const sprite = new THREE.Sprite(material);
-  // Scale based on canvas size, but smaller in world units
-  const scale = 0.5; 
-  sprite.scale.set(canvas.width * scale * 0.1, canvas.height * scale * 0.1, 1);
+  // Glow effect for highlighted nodes
+  if (highlightSet.has(node.id)) {
+    const glowGeometry = new THREE.SphereGeometry(size * 1.8, 16, 16)
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      color: accentColor,
+      transparent: true,
+      opacity: 0.15
+    })
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial)
+    group.add(glow)
+  }
   
-  return sprite;
+  // Label - BIGGER text for better visibility
+  const label = node.name || node.label || node.id
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    const font = 'bold 72px JetBrains Mono, monospace'
+    ctx.font = font
+    const textWidth = ctx.measureText(label).width
+    canvas.width = textWidth + 60
+    canvas.height = 96
+    
+    ctx.font = font
+    ctx.fillStyle = highlightSet.size > 0 && !highlightSet.has(node.id) ? '#d4d4d4' : '#0a0a0a'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(label, canvas.width / 2, canvas.height / 2)
+    
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.minFilter = THREE.LinearFilter
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true })
+    const sprite = new THREE.Sprite(spriteMaterial)
+    sprite.scale.set(canvas.width * 0.08, canvas.height * 0.08, 1)
+    sprite.position.set(0, size + 8, 0)
+    group.add(sprite)
+  }
+  
+  return group
 }
+
+// ============================================
+// FILTER TOGGLE COMPONENT
+// ============================================
+
+interface FilterToggleProps {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  count?: number
+  color: string
+  icon: React.ReactNode
+}
+
+const FilterToggle = ({ label, checked, onChange, count, color, icon }: FilterToggleProps) => (
+  <motion.button
+    onClick={() => onChange(!checked)}
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    className={`flex items-center gap-3 p-3 border-2 transition-all w-full ${
+      checked 
+        ? 'border-foreground bg-foreground text-background' 
+        : 'border-border hover:border-muted-foreground'
+    }`}
+  >
+    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+    <span className="flex-1 text-left font-mono text-xs uppercase tracking-wider">{label}</span>
+    {icon}
+    {count !== undefined && (
+      <span className={`text-xs font-mono ${checked ? 'text-background/70' : 'text-muted-foreground'}`}>
+        {count}
+      </span>
+    )}
+  </motion.button>
+)
+
+// ============================================
+// INSIGHT CARD COMPONENT  
+// ============================================
+
+interface InsightCardProps {
+  title: string
+  description: string
+  icon: React.ReactNode
+  color: string
+  selected: boolean
+  onClick: () => void
+  delay?: number
+}
+
+const InsightCard = ({ title, description, icon, color, selected, onClick, delay = 0 }: InsightCardProps) => (
+  <motion.button
+    initial={{ opacity: 0, x: -10 }}
+    animate={{ opacity: 1, x: 0 }}
+    transition={{ delay }}
+    onClick={onClick}
+    whileHover={{ x: 4 }}
+    className={`w-full text-left p-4 border-2 transition-all ${
+      selected 
+        ? 'border-foreground bg-foreground text-background' 
+        : 'border-border hover:border-muted-foreground'
+    }`}
+  >
+    <div className="flex items-center gap-3">
+      <div className={`p-2 ${selected ? 'bg-background/20' : ''}`} style={{ color }}>
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-mono text-xs uppercase tracking-wider font-semibold">{title}</p>
+        <p className={`text-[10px] mt-0.5 ${selected ? 'text-background/70' : 'text-muted-foreground'}`}>
+          {description}
+        </p>
+      </div>
+    </div>
+  </motion.button>
+)
 
 // ============================================
 // MAIN COMPONENT
 // ============================================
 
-export function KnowledgeGraph3D() {
+interface KnowledgeGraph3DProps {
+  onBack?: () => void
+}
+
+export function KnowledgeGraph3D({ onBack }: KnowledgeGraph3DProps) {
   // State
   const [status, setStatus] = useState<GraphStatus | null>(null)
   const [graphData, setGraphData] = useState<GraphData | null>(null)
   const [insights, setInsights] = useState<InsightData>({})
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
-  const [activeView, setActiveView] = useState<'graph' | 'insights' | 'status'>('graph')
+  const [loadingInsights, setLoadingInsights] = useState(false)
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null)
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set())
   const [highlightLinks, setHighlightLinks] = useState<Set<string>>(new Set())
+  const [showFilters, setShowFilters] = useState(true)
+  const [showInsights, setShowInsights] = useState(false)
+  const [showRelationships, setShowRelationships] = useState(false)
+  const [connectedNodesList, setConnectedNodesList] = useState<Array<{node: GraphNode, linkType: string, direction: 'in' | 'out'}>>([])
+  const [searchResults, setSearchResults] = useState<GraphNode[]>([])
+  const [showSearchResults, setShowSearchResults] = useState(false)
   
   // Filter state
   const [filters, setFilters] = useState({
@@ -260,7 +410,6 @@ export function KnowledgeGraph3D() {
       const res = await fetch(`${API}/graph/visualization?limit=${filters.nodeLimit}`)
       const data = await res.json()
       
-      // Ensure links reference node ids properly
       if (data.nodes && data.links) {
         const nodeIds = new Set(data.nodes.map((n: GraphNode) => n.id))
         data.links = data.links.filter((l: GraphLink) => {
@@ -278,12 +427,13 @@ export function KnowledgeGraph3D() {
   }, [filters.nodeLimit])
 
   const fetchInsights = useCallback(async () => {
+    setLoadingInsights(true)
     try {
       const [silosRes, burnoutRes, costsRes, velocityRes] = await Promise.all([
-        fetch(`${API}/graph/insights/silos`).then(r => r.json()).catch(() => null),
-        fetch(`${API}/graph/insights/burnout-risk`).then(r => r.json()).catch(() => null),
-        fetch(`${API}/graph/insights/hidden-costs`).then(r => r.json()).catch(() => null),
-        fetch(`${API}/graph/insights/ticket-velocity`).then(r => r.json()).catch(() => null)
+        fetch(`${API}/graph/insights/silos`).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${API}/graph/insights/burnout-risk`).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${API}/graph/insights/hidden-costs`).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${API}/graph/insights/ticket-velocity`).then(r => r.ok ? r.json() : null).catch(() => null)
       ])
       
       setInsights({
@@ -295,6 +445,7 @@ export function KnowledgeGraph3D() {
     } catch (err) {
       console.error("Failed to fetch insights:", err)
     }
+    setLoadingInsights(false)
   }, [])
 
   const syncGraph = async () => {
@@ -314,15 +465,31 @@ export function KnowledgeGraph3D() {
       .finally(() => setLoading(false))
   }, [fetchStatus, loadVisualization, fetchInsights])
 
-  // Optimize force graph layout
+  // Configure force layout and initial camera position
   useEffect(() => {
     if (graphRef.current) {
-      // Reduce repulsion to keep nodes closer
-      graphRef.current.d3Force('charge').strength(-20);
-      // Shorten link distance
-      graphRef.current.d3Force('link').distance(40);
+      // Stronger charge for tighter clustering
+      graphRef.current.d3Force('charge').strength(-80)
+      // Shorter link distance to keep nodes closer
+      graphRef.current.d3Force('link').distance(30)
+      // Add center force to keep graph centered
+      const d3 = graphRef.current.d3Force
+      if (d3('center')) {
+        d3('center').strength(1)
+      }
+      // Center and zoom in closer on initial load (much closer now)
+      setTimeout(() => {
+        if (graphRef.current) {
+          graphRef.current.cameraPosition({ x: 0, y: 0, z: 60 }, { x: 0, y: 0, z: 0 }, 1000)
+          // Increase zoom sensitivity by reducing the controls' zoom speed divisor
+          const controls = graphRef.current.controls()
+          if (controls) {
+            controls.zoomSpeed = 5.0  // Default is ~1.0, now 5x more sensitive
+          }
+        }
+      }, 800)
     }
-  }, [graphData]);
+  }, [graphData])
 
   // ============================================
   // FILTERED DATA
@@ -331,18 +498,14 @@ export function KnowledgeGraph3D() {
   const filteredData = useMemo(() => {
     if (!graphData) return { nodes: [], links: [] }
     
-    // Filter nodes
-    let nodes = graphData.nodes.filter(node => {
-      // Type filter
+    const nodes = graphData.nodes.filter(node => {
       if (node.type === 'developer' && !filters.showDevelopers) return false
       if (node.type === 'commit' && !filters.showCommits) return false
       if (node.type === 'ticket' && !filters.showTickets) return false
       if (node.type === 'file' && !filters.showFiles) return false
       
-      // Team filter
       if (filters.selectedTeam !== 'all' && node.team && node.team !== filters.selectedTeam) return false
       
-      // Search filter
       if (filters.searchQuery) {
         const query = filters.searchQuery.toLowerCase()
         const searchableText = `${node.label} ${node.name || ''} ${node.email || ''} ${node.team || ''}`.toLowerCase()
@@ -352,10 +515,7 @@ export function KnowledgeGraph3D() {
       return true
     })
     
-    // Get valid node IDs
     const nodeIds = new Set(nodes.map(n => n.id))
-    
-    // Filter links
     const links = graphData.links.filter(link => {
       const sourceId = typeof link.source === 'object' ? link.source.id : link.source
       const targetId = typeof link.target === 'object' ? link.target.id : link.target
@@ -365,7 +525,6 @@ export function KnowledgeGraph3D() {
     return { nodes, links }
   }, [graphData, filters])
 
-  // Get unique teams for filter
   const teams = useMemo(() => {
     if (!graphData) return []
     const teamSet = new Set<string>()
@@ -381,10 +540,15 @@ export function KnowledgeGraph3D() {
 
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedNode(node)
+    setShowRelationships(false)
     
-    // Highlight connected nodes and links
     const connectedNodes = new Set<string>([node.id])
     const connectedLinks = new Set<string>()
+    const nodeConnections: Array<{node: GraphNode, linkType: string, direction: 'in' | 'out'}> = []
+    
+    // Build a map of nodes by id for quick lookup
+    const nodesById = new Map<string, GraphNode>()
+    filteredData.nodes.forEach(n => nodesById.set(n.id, n))
     
     filteredData.links.forEach(link => {
       const sourceId = typeof link.source === 'object' ? link.source.id : link.source
@@ -393,173 +557,172 @@ export function KnowledgeGraph3D() {
       if (sourceId === node.id) {
         connectedNodes.add(targetId)
         connectedLinks.add(`${sourceId}-${targetId}`)
+        const targetNode = nodesById.get(targetId)
+        if (targetNode) {
+          nodeConnections.push({ node: targetNode, linkType: link.type, direction: 'out' })
+        }
       }
       if (targetId === node.id) {
         connectedNodes.add(sourceId)
         connectedLinks.add(`${sourceId}-${targetId}`)
+        const sourceNode = nodesById.get(sourceId)
+        if (sourceNode) {
+          nodeConnections.push({ node: sourceNode, linkType: link.type, direction: 'in' })
+        }
       }
     })
     
+    setConnectedNodesList(nodeConnections)
     setHighlightNodes(connectedNodes)
     setHighlightLinks(connectedLinks)
     
-    // Focus camera on node
     if (graphRef.current && node.x !== undefined) {
-      const distance = 120
+      const distance = 30  // Much closer zoom when selecting a node
       const distRatio = 1 + distance / Math.hypot(node.x, node.y || 0, node.z || 0)
       graphRef.current.cameraPosition(
         { x: node.x * distRatio, y: (node.y || 0) * distRatio, z: (node.z || 0) * distRatio },
         node,
-        1500
+        1000
       )
     }
-  }, [filteredData.links])
+  }, [filteredData.links, filteredData.nodes])
+
+  const handleConnectedNodeClick = useCallback((connectedNode: GraphNode) => {
+    handleNodeClick(connectedNode)
+  }, [handleNodeClick])
 
   const handleBackgroundClick = useCallback(() => {
     setSelectedNode(null)
     setHighlightNodes(new Set())
     setHighlightLinks(new Set())
+    setShowRelationships(false)
+    setConnectedNodesList([])
+    setShowSearchResults(false)
+    setSearchResults([])
   }, [])
+
+  // Search and focus on a specific node
+  const handleSearch = useCallback((query: string) => {
+    if (!query.trim() || !graphData) {
+      setSearchResults([])
+      setShowSearchResults(false)
+      return
+    }
+    
+    const q = query.toLowerCase()
+    const matches = graphData.nodes.filter(node => {
+      const searchableText = `${node.label} ${node.name || ''} ${node.email || ''} ${node.team || ''}`.toLowerCase()
+      return searchableText.includes(q)
+    }).slice(0, 8) // Limit to 8 results
+    
+    setSearchResults(matches)
+    setShowSearchResults(matches.length > 0)
+  }, [graphData])
+
+  const focusOnNode = useCallback((node: GraphNode) => {
+    setShowSearchResults(false)
+    
+    // First, get the positioned node from current graph BEFORE changing filters
+    let targetNode: GraphNode | null = null
+    if (graphRef.current) {
+      const graphInstance = graphRef.current
+      const positionedNode = graphInstance.graphData().nodes.find(
+        (n: GraphNode) => n.id === node.id
+      )
+      if (positionedNode && positionedNode.x !== undefined) {
+        targetNode = positionedNode
+      }
+    }
+    
+    // Clear filters to ensure node is visible
+    setFilters(f => ({
+      ...f,
+      searchQuery: '',
+      showDevelopers: true,
+      showCommits: true,
+      showTickets: true,
+      showFiles: true,
+      selectedTeam: 'all'
+    }))
+    
+    // If we found the positioned node, focus on it immediately
+    if (targetNode && graphRef.current) {
+      const distance = 25
+      const distRatio = 1 + distance / Math.hypot(
+        targetNode.x || 0, 
+        targetNode.y || 0, 
+        targetNode.z || 0
+      )
+      
+      graphRef.current.cameraPosition(
+        { 
+          x: (targetNode.x || 0) * distRatio, 
+          y: (targetNode.y || 0) * distRatio, 
+          z: (targetNode.z || 0) * distRatio 
+        },
+        { x: targetNode.x || 0, y: targetNode.y || 0, z: targetNode.z || 0 },
+        1500
+      )
+      
+      // Highlight the node and its connections
+      handleNodeClick(targetNode)
+    } else {
+      // Fallback: wait for graph to update then try again
+      setTimeout(() => {
+        if (graphRef.current) {
+          const graphInstance = graphRef.current
+          const positionedNode = graphInstance.graphData().nodes.find(
+            (n: GraphNode) => n.id === node.id
+          )
+          
+          if (positionedNode && positionedNode.x !== undefined) {
+            const distance = 25
+            const distRatio = 1 + distance / Math.hypot(
+              positionedNode.x || 0, 
+              positionedNode.y || 0, 
+              positionedNode.z || 0
+            )
+            
+            graphInstance.cameraPosition(
+              { 
+                x: positionedNode.x * distRatio, 
+                y: (positionedNode.y || 0) * distRatio, 
+                z: (positionedNode.z || 0) * distRatio 
+              },
+              { x: positionedNode.x, y: positionedNode.y || 0, z: positionedNode.z || 0 },
+              1500
+            )
+            
+            handleNodeClick(positionedNode)
+          }
+        }
+      }, 200)
+    }
+  }, [handleNodeClick])
 
   const centerGraph = useCallback(() => {
     if (graphRef.current) {
-      graphRef.current.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000)
+      graphRef.current.cameraPosition({ x: 0, y: 0, z: 60 }, { x: 0, y: 0, z: 0 }, 1000)
     }
   }, [])
 
   // ============================================
-  // NODE & LINK RENDERING
+  // RENDER CALLBACKS
   // ============================================
 
-  const getNodeColor = useCallback((node: GraphNode): string => {
-    const nodeType = node.type?.toLowerCase() || 'default'
-    const baseColor = NODE_COLORS[nodeType] || NODE_COLORS.default || "#6b7280"
-    
-    // Apply insight-based coloring
-    if (filters.selectedInsight === 'burnout' && nodeType === 'developer') {
-      const dev = insights.burnoutRisk?.developers.find(d => d.email === node.email)
-      if (dev) {
-        switch (dev.risk_level) {
-          case 'CRITICAL': return "#dc2626"
-          case 'HIGH': return "#f97316"
-          case 'MEDIUM': return "#eab308"
-          case 'LOW': return "#22c55e"
-          default: return baseColor
-        }
-      }
-    }
-    
-    if (filters.selectedInsight === 'silos' && nodeType === 'file') {
-      const silo = insights.silos?.silos.find(s => s.file === node.id)
-      if (silo) {
-        switch (silo.risk_level) {
-          case 'HIGH': return "#dc2626"
-          case 'MEDIUM': return "#f97316"
-          case 'LOW': return "#eab308"
-          default: return baseColor
-        }
-      }
-    }
-    
-    // Highlight effect
-    if (highlightNodes.size > 0) {
-      return highlightNodes.has(node.id) ? baseColor : "#374151"
-    }
-    
-    return baseColor
-  }, [filters.selectedInsight, insights, highlightNodes])
-
   const nodeThreeObject = useCallback((node: GraphNode) => {
-    const nodeType = node.type?.toLowerCase() || 'default'
-    const size = NODE_SIZES[nodeType] || 4
-    const color = getNodeColor(node)
-    
-    // Create sphere geometry
-    const geometry = new THREE.SphereGeometry(size, 16, 16)
-    const material = new THREE.MeshLambertMaterial({
-      color: color,
-      transparent: highlightNodes.size > 0 && !highlightNodes.has(node.id),
-      opacity: highlightNodes.size > 0 && !highlightNodes.has(node.id) ? 0.3 : 1
-    })
-    
-    const mesh = new THREE.Mesh(geometry, material)
-    
-    // Add glow effect for highlighted nodes
-    if (highlightNodes.has(node.id)) {
-      const glowGeometry = new THREE.SphereGeometry(size * 1.5, 16, 16)
-      const glowMaterial = new THREE.MeshBasicMaterial({
-        color: color,
-        transparent: true,
-        opacity: 0.3
-      })
-      const glow = new THREE.Mesh(glowGeometry, glowMaterial)
-      mesh.add(glow)
-    }
-    
-    // Create Group to hold mesh and label
-    const group = new THREE.Group();
-    group.add(mesh);
-    
-    // Add Text Label
-    const label = node.name || node.label || node.id;
-    // Show label if node is highlighted OR if total node count is small (< 50) OR always (users request)
-    // We'll show it always but make it semi-transparent if not highlighted? 
-    // Or just fully visible. The user wants to see text.
-    
-    const sprite = createSpriteText(label, "#f1f5f9", 32);
-    if (sprite) {
-      sprite.position.set(0, size + 4, 0); // Position above the node
-      // If highlights are active and this node is not highlighted, fade the text
-      if (highlightNodes.size > 0 && !highlightNodes.has(node.id)) {
-        sprite.material.opacity = 0.2;
-      }
-      group.add(sprite);
-    }
-    
-    return group;
-  }, [getNodeColor, highlightNodes])
-
-  const linkThreeObject = useCallback((link: GraphLink) => {
-    // Only show link labels when filtered or highlighted might be better, but user asked for labels
-    // We'll show them.
-    
-    // Get link ID
-    const sourceId = typeof link.source === 'object' ? (link.source as any).id : link.source;
-    const targetId = typeof link.target === 'object' ? (link.target as any).id : link.target;
-    // const linkId = `${sourceId}-${targetId}`; // unused
-
-    // If highlights are active, only show labels for highlighted links
-    if (highlightLinks.size > 0) {
-        // We need to check if this link is highlighted
-        // The link object in d3 graph might not directly match our ID construction if we don't have IDs
-        // But we constructed highlightLinks using `${sourceId}-${targetId}` in handleNodeClick
-        // So we can check that.
-        // HOWEVER, graphData.links objects are modified by ForceGraph to have source/target as objects.
-        const idToCheck = `${sourceId}-${targetId}`;
-        const reverseId = `${targetId}-${sourceId}`;
-        if (!highlightLinks.has(idToCheck) && !highlightLinks.has(reverseId)) {
-            return new THREE.Object3D();
-        }
-    }
-
-    const label = link.type?.toLowerCase().replace(/_/g, ' ') || '';
-    const sprite = createSpriteText(label, "#94a3b8", 16);
-    if (sprite) {
-      sprite.position.y = 0; // Center
-      return sprite;
-    }
-    return new THREE.Object3D();
-  }, [highlightLinks]);
+    return createNodeMesh(node, highlightNodes)
+  }, [highlightNodes])
 
   const getLinkColor = useCallback((link: GraphLink): string => {
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source
     const targetId = typeof link.target === 'object' ? link.target.id : link.target
     const linkId = `${sourceId}-${targetId}`
     
-    const baseColor = link.type && LINK_COLORS[link.type] ? LINK_COLORS[link.type] : DEFAULT_COLOR
+    const baseColor = link.type && LINK_COLORS[link.type] ? LINK_COLORS[link.type] : LINK_COLORS.default
     
     if (highlightLinks.size > 0) {
-      return highlightLinks.has(linkId) ? baseColor : "#1f2937"
+      return highlightLinks.has(linkId) ? baseColor : "#e5e5e5"
     }
     
     return baseColor
@@ -570,624 +733,727 @@ export function KnowledgeGraph3D() {
     const targetId = typeof link.target === 'object' ? link.target.id : link.target
     const linkId = `${sourceId}-${targetId}`
     
-    return highlightLinks.has(linkId) ? 2 : 0.5
+    return highlightLinks.has(linkId) ? 3 : 1
   }, [highlightLinks])
 
   // ============================================
-  // RENDER
+  // LOADING STATE
   // ============================================
 
   if (loading && !graphData) {
     return (
-      <div className="w-full h-screen flex items-center justify-center bg-linear-to-br from-slate-900 to-slate-800">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-slate-300 text-lg">Loading Knowledge Graph...</p>
-        </div>
+      <div className="w-full h-screen bg-background flex items-center justify-center">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center"
+        >
+          <motion.div 
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-16 h-16 border-4 border-border border-t-foreground mx-auto mb-6"
+          />
+          <p className="text-muted-foreground font-mono text-sm uppercase tracking-widest">
+            Loading Knowledge Graph...
+          </p>
+        </motion.div>
       </div>
     )
   }
 
+  // ============================================
+  // MAIN RENDER
+  // ============================================
+
   return (
-    <div className="w-full h-screen bg-linear-to-br from-slate-900 to-slate-800 flex flex-col overflow-hidden">
+    <div className="w-full h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="shrink-0 bg-slate-900/80 backdrop-blur-sm border-b border-slate-700 px-6 py-4">
-        <div className="flex items-center justify-between">
+      <motion.header 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="shrink-0 border-b-2 border-foreground bg-background z-10"
+      >
+        <div className="px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-white">Knowledge Graph</h1>
-            {status && (
-              <div className="flex items-center gap-2">
-                <div className={`h-2.5 w-2.5 rounded-full ${
-                  status.status === 'connected' ? 'bg-green-400 animate-pulse' : 'bg-red-400'
-                }`} />
-                <span className="text-sm text-slate-400">
-                  {status.stats?.nodeCount || 0} nodes • {status.stats?.relCount || 0} relationships
-                </span>
+            {onBack && (
+              <motion.button
+                whileHover={{ x: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onBack}
+                className="flex items-center gap-2 px-4 py-2 border-2 border-foreground bg-foreground text-background font-mono text-xs uppercase tracking-wider hover:opacity-90 transition-all"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Dashboard
+              </motion.button>
+            )}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-foreground flex items-center justify-center">
+                <Layers className="w-5 h-5 text-background" />
               </div>
+              <div>
+                <h1 className="font-semibold tracking-tight">Knowledge Graph</h1>
+                <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+                  Interactive Data Visualization
+                </p>
+              </div>
+            </div>
+            
+            {status && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="flex items-center gap-2 ml-4 pl-4 border-l border-border"
+              >
+                <div className={`w-2 h-2 rounded-full ${
+                  status.status === 'connected' ? 'bg-success animate-pulse' : 'bg-destructive'
+                }`} />
+                <span className="text-xs font-mono text-muted-foreground">
+                  {status.stats?.nodeCount || 0} nodes • {status.stats?.relCount || 0} edges
+                </span>
+              </motion.div>
             )}
           </div>
           
           <div className="flex items-center gap-3">
-            {/* View Tabs */}
-            <div className="flex bg-slate-800 rounded-lg p-1">
-              <button
-                onClick={() => setActiveView('graph')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeView === 'graph' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                3D Graph
-              </button>
-              <button
-                onClick={() => setActiveView('insights')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeView === 'insights' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Insights
-              </button>
-              <button
-                onClick={() => setActiveView('status')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeView === 'status' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Status
-              </button>
-            </div>
-            
-            <Button 
-              onClick={syncGraph} 
-              disabled={syncing}
-              className="bg-emerald-600 hover:bg-emerald-700"
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-2 border-2 font-mono text-xs uppercase tracking-wider transition-all ${
+                showFilters ? 'border-foreground bg-foreground text-background' : 'border-border hover:border-foreground'
+              }`}
             >
-              {syncing ? 'Syncing...' : 'Sync Data'}
-            </Button>
+              {showFilters ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              Filters
+            </motion.button>
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                const newState = !showInsights
+                setShowInsights(newState)
+                // Re-fetch insights when opening the panel
+                if (newState) {
+                  fetchInsights()
+                }
+              }}
+              disabled={loadingInsights}
+              className={`flex items-center gap-2 px-4 py-2 border-2 font-mono text-xs uppercase tracking-wider transition-all ${
+                showInsights ? 'border-foreground bg-foreground text-background' : 'border-border hover:border-foreground'
+              } ${loadingInsights ? 'opacity-70' : ''}`}
+            >
+              {loadingInsights ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Info className="w-4 h-4" />
+              )}
+              {loadingInsights ? 'Loading...' : 'Insights'}
+            </motion.button>
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={syncGraph}
+              disabled={syncing}
+              className="flex items-center gap-2 px-4 py-2 border-2 border-foreground bg-foreground text-background font-mono text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing...' : 'Sync'}
+            </motion.button>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* ============================================ */}
-        {/* LEFT SIDEBAR - FILTERS */}
-        {/* ============================================ */}
-        {activeView === 'graph' && (
-          <aside className="w-80 shrink-0 bg-slate-900/60 border-r border-slate-700 p-4 overflow-y-auto">
-            {/* Search */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-300 mb-2">Search</label>
-              <input
-                type="text"
-                placeholder="Search nodes..."
-                value={filters.searchQuery}
-                onChange={(e) => setFilters(f => ({ ...f, searchQuery: e.target.value }))}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Node Type Filters */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-300 mb-3">Node Types</label>
-              <div className="space-y-2">
-                {[
-                  { key: 'showDevelopers', label: 'Developers', color: NODE_COLORS.developer, count: graphData?.meta?.nodesByType?.developers },
-                  { key: 'showCommits', label: 'Commits', color: NODE_COLORS.commit, count: graphData?.meta?.nodesByType?.commits },
-                  { key: 'showTickets', label: 'Tickets', color: NODE_COLORS.ticket, count: graphData?.meta?.nodesByType?.tickets },
-                  { key: 'showFiles', label: 'Files', color: NODE_COLORS.file, count: graphData?.meta?.nodesByType?.files }
-                ].map(item => (
-                  <label key={item.key} className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={filters[item.key as keyof typeof filters] as boolean}
-                      onChange={(e) => setFilters(f => ({ ...f, [item.key]: e.target.checked }))}
-                      className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
-                    />
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-slate-300 group-hover:text-white">{item.label}</span>
-                    <span className="text-slate-500 text-sm ml-auto">{item.count || 0}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Team Filter */}
-            {teams.length > 0 && (
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-300 mb-2">Team</label>
-                <select
-                  value={filters.selectedTeam}
-                  onChange={(e) => setFilters(f => ({ ...f, selectedTeam: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All Teams</option>
-                  {teams.map(team => (
-                    <option key={team} value={team}>{team}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Node Limit */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Node Limit: {filters.nodeLimit}
-              </label>
-              <input
-                type="range"
-                min={50}
-                max={500}
-                step={50}
-                value={filters.nodeLimit}
-                onChange={(e) => setFilters(f => ({ ...f, nodeLimit: parseInt(e.target.value) }))}
-                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-              />
-              <div className="flex justify-between text-xs text-slate-500 mt-1">
-                <span>50</span>
-                <span>500</span>
-              </div>
-            </div>
-
-            {/* Insight Overlay */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-300 mb-2">Insight Overlay</label>
-              <select
-                value={filters.selectedInsight}
-                onChange={(e) => setFilters(f => ({ ...f, selectedInsight: e.target.value as any }))}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="none">None</option>
-                <option value="burnout">🔥 Burnout Risk</option>
-                <option value="silos">🚧 Knowledge Silos</option>
-                <option value="costs">💰 Hidden Costs</option>
-                <option value="velocity">🚀 Velocity</option>
-              </select>
-            </div>
-
-            {/* Graph Controls */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-300 mb-3">Controls</label>
-              <div className="space-y-2">
-                <Button 
-                  variant="outline" 
-                  onClick={centerGraph}
-                  className="w-full justify-start border-slate-600 text-slate-300 hover:bg-slate-800"
-                >
-                  🎯 Center Graph
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => loadVisualization()}
-                  className="w-full justify-start border-slate-600 text-slate-300 hover:bg-slate-800"
-                >
-                  🔄 Reload Data
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={handleBackgroundClick}
-                  className="w-full justify-start border-slate-600 text-slate-300 hover:bg-slate-800"
-                >
-                  ✖ Clear Selection
-                </Button>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="bg-slate-800/50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Relationship Legend</h3>
-              <div className="space-y-2 text-sm">
-                {Object.entries(LINK_COLORS).filter(([k]) => k !== 'default').map(([type, color]) => (
-                  <div key={type} className="flex items-center gap-2">
-                    <div className="w-8 h-0.5" style={{ backgroundColor: color }} />
-                    <span className="text-slate-400">{type.replace('_', ' ')}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </aside>
-        )}
-
-        {/* ============================================ */}
-        {/* MAIN CONTENT */}
-        {/* ============================================ */}
-        <main className="flex-1 relative">
-          {activeView === 'graph' && (
-            <>
-              {/* 3D Graph */}
-              <ForceGraph3D
-                ref={graphRef}
-                graphData={filteredData}
-                nodeThreeObject={nodeThreeObject}
-                linkThreeObjectExtend={true}
-                linkThreeObject={linkThreeObject}
-                nodeLabel={(node: GraphNode) => `
-                  <div style="background: rgba(15, 23, 42, 0.95); padding: 12px; border-radius: 8px; max-width: 280px; border: 1px solid rgba(100, 116, 139, 0.5);">
-                    <div style="font-weight: 600; color: white; margin-bottom: 8px;">${node.name || node.label}</div>
-                    <div style="color: #94a3b8; font-size: 12px;">
-                      <div><span style="color: #64748b;">Type:</span> ${node.type}</div>
-                      ${node.email ? `<div><span style="color: #64748b;">Email:</span> ${node.email}</div>` : ''}
-                      ${node.team ? `<div><span style="color: #64748b;">Team:</span> ${node.team}</div>` : ''}
-                      ${node.role ? `<div><span style="color: #64748b;">Role:</span> ${node.role}</div>` : ''}
-                      ${node.status ? `<div><span style="color: #64748b;">Status:</span> ${node.status}</div>` : ''}
-                      ${node.priority ? `<div><span style="color: #64748b;">Priority:</span> ${node.priority}</div>` : ''}
-                    </div>
-                  </div>
-                `}
-                linkColor={getLinkColor}
-                linkWidth={getLinkWidth}
-                linkDirectionalArrowLength={3}
-                linkDirectionalArrowRelPos={1}
-                linkOpacity={0.6}
-                onNodeClick={handleNodeClick}
-                onBackgroundClick={handleBackgroundClick}
-                backgroundColor="#0f172a"
-                showNavInfo={false}
-              />
-
-              {/* Selected Node Details Panel */}
-              {selectedNode && (
-                <div className="absolute top-4 right-4 w-80 bg-slate-900/95 backdrop-blur-sm border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
-                  <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: NODE_COLORS[selectedNode.type?.toLowerCase()] || NODE_COLORS.default }} />
-                      <h3 className="font-semibold text-white">{selectedNode.name || selectedNode.label}</h3>
-                    </div>
-                    <button 
-                      onClick={handleBackgroundClick}
-                      className="text-slate-400 hover:text-white transition-colors"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="p-4 space-y-3">
-                    <div>
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">Type</span>
-                      <p className="text-slate-200 capitalize">{selectedNode.type}</p>
-                    </div>
-                    {selectedNode.email && (
-                      <div>
-                        <span className="text-xs text-slate-500 uppercase tracking-wider">Email</span>
-                        <p className="text-slate-200">{selectedNode.email}</p>
-                      </div>
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Left Sidebar - Filters */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.aside
+              initial={{ x: -320, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -320, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="w-80 shrink-0 border-r-2 border-border bg-background p-4 overflow-y-auto z-10"
+            >
+              {/* Search */}
+              <motion.div {...slideUp} transition={{ delay: 0.1 }} className="mb-6">
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                  Search & Focus
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
+                  <input
+                    type="text"
+                    placeholder="Search nodes..."
+                    value={filters.searchQuery}
+                    onChange={(e) => {
+                      setFilters(f => ({ ...f, searchQuery: e.target.value }))
+                      handleSearch(e.target.value)
+                    }}
+                    onFocus={() => {
+                      if (filters.searchQuery && searchResults.length > 0) {
+                        setShowSearchResults(true)
+                      }
+                    }}
+                    className="w-full pl-10 pr-4 py-2.5 bg-background border-2 border-border focus:border-foreground outline-none font-mono text-sm transition-colors"
+                  />
+                  
+                  {/* Search Results Dropdown */}
+                  <AnimatePresence>
+                    {showSearchResults && searchResults.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute top-full left-0 right-0 mt-1 bg-background border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-50 max-h-64 overflow-y-auto"
+                      >
+                        <div className="p-2 border-b border-border">
+                          <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                            {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} — Click to focus
+                          </span>
+                        </div>
+                        {searchResults.map((node, i) => (
+                          <motion.button
+                            key={node.id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                            onClick={() => focusOnNode(node)}
+                            className="w-full p-3 text-left hover:bg-muted transition-colors border-b border-border last:border-0 flex items-center gap-3"
+                          >
+                            <div 
+                              className="w-3 h-3 rounded-full shrink-0" 
+                              style={{ backgroundColor: ACCENT_COLORS[node.type] || ACCENT_COLORS.default }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-mono text-sm truncate font-medium">{node.label}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase">{node.type}</p>
+                            </div>
+                            <Target className="w-4 h-4 text-muted-foreground shrink-0" />
+                          </motion.button>
+                        ))}
+                      </motion.div>
                     )}
-                    {selectedNode.team && (
-                      <div>
-                        <span className="text-xs text-slate-500 uppercase tracking-wider">Team</span>
-                        <p className="text-slate-200">{selectedNode.team}</p>
-                      </div>
-                    )}
-                    {selectedNode.role && (
-                      <div>
-                        <span className="text-xs text-slate-500 uppercase tracking-wider">Role</span>
-                        <p className="text-slate-200">{selectedNode.role}</p>
-                      </div>
-                    )}
-                    {selectedNode.department && (
-                      <div>
-                        <span className="text-xs text-slate-500 uppercase tracking-wider">Department</span>
-                        <p className="text-slate-200">{selectedNode.department}</p>
-                      </div>
-                    )}
-                    {selectedNode.status && (
-                      <div>
-                        <span className="text-xs text-slate-500 uppercase tracking-wider">Status</span>
-                        <p className={`inline-block px-2 py-0.5 rounded text-sm ${
-                          selectedNode.status === 'Done' ? 'bg-green-900/50 text-green-400' :
-                          selectedNode.status === 'In Progress' ? 'bg-yellow-900/50 text-yellow-400' :
-                          'bg-slate-700 text-slate-300'
-                        }`}>{selectedNode.status}</p>
-                      </div>
-                    )}
-                    {selectedNode.priority && (
-                      <div>
-                        <span className="text-xs text-slate-500 uppercase tracking-wider">Priority</span>
-                        <p className={`inline-block px-2 py-0.5 rounded text-sm ${
-                          selectedNode.priority === 'Critical' || selectedNode.priority === 'Highest' 
-                            ? 'bg-red-900/50 text-red-400' 
-                            : 'bg-slate-700 text-slate-300'
-                        }`}>{selectedNode.priority}</p>
-                      </div>
-                    )}
-                    {selectedNode.hourly_rate && (
-                      <div>
-                        <span className="text-xs text-slate-500 uppercase tracking-wider">Hourly Rate</span>
-                        <p className="text-slate-200">${selectedNode.hourly_rate}/hr</p>
-                      </div>
-                    )}
-                    
-                    {/* Connection count */}
-                    <div className="pt-3 border-t border-slate-700">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">Connections</span>
-                      <p className="text-slate-200">{highlightLinks.size} relationships</p>
-                    </div>
-                  </div>
+                  </AnimatePresence>
                 </div>
+              </motion.div>
+
+              {/* Node Type Filters */}
+              <motion.div {...slideUp} transition={{ delay: 0.15 }} className="mb-6">
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
+                  Node Types
+                </label>
+                <div className="space-y-2">
+                  <FilterToggle
+                    label="Developers"
+                    checked={filters.showDevelopers}
+                    onChange={(v) => setFilters(f => ({ ...f, showDevelopers: v }))}
+                    count={graphData?.meta?.nodesByType?.developers}
+                    color={ACCENT_COLORS.developer}
+                    icon={<Users className="w-4 h-4" />}
+                  />
+                  <FilterToggle
+                    label="Commits"
+                    checked={filters.showCommits}
+                    onChange={(v) => setFilters(f => ({ ...f, showCommits: v }))}
+                    count={graphData?.meta?.nodesByType?.commits}
+                    color={ACCENT_COLORS.commit}
+                    icon={<GitCommit className="w-4 h-4" />}
+                  />
+                  <FilterToggle
+                    label="Tickets"
+                    checked={filters.showTickets}
+                    onChange={(v) => setFilters(f => ({ ...f, showTickets: v }))}
+                    count={graphData?.meta?.nodesByType?.tickets}
+                    color={ACCENT_COLORS.ticket}
+                    icon={<Ticket className="w-4 h-4" />}
+                  />
+                  <FilterToggle
+                    label="Files"
+                    checked={filters.showFiles}
+                    onChange={(v) => setFilters(f => ({ ...f, showFiles: v }))}
+                    count={graphData?.meta?.nodesByType?.files}
+                    color={ACCENT_COLORS.file}
+                    icon={<FileText className="w-4 h-4" />}
+                  />
+                </div>
+              </motion.div>
+
+              {/* Team Filter */}
+              {teams.length > 0 && (
+                <motion.div {...slideUp} transition={{ delay: 0.2 }} className="mb-6">
+                  <label className="block text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                    Team
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={filters.selectedTeam}
+                      onChange={(e) => setFilters(f => ({ ...f, selectedTeam: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-background border-2 border-border focus:border-foreground outline-none font-mono text-sm appearance-none cursor-pointer transition-colors"
+                    >
+                      <option value="all">All Teams</option>
+                      {teams.map(team => (
+                        <option key={team} value={team}>{team}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  </div>
+                </motion.div>
               )}
 
-              {/* Stats Overlay */}
-              <div className="absolute bottom-4 left-4 bg-slate-900/80 backdrop-blur-sm border border-slate-700 rounded-lg px-4 py-3">
-                <div className="flex items-center gap-6 text-sm">
-                  <div>
-                    <span className="text-slate-400">Showing:</span>
-                    <span className="text-white ml-2 font-medium">{filteredData.nodes.length} nodes</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Links:</span>
-                    <span className="text-white ml-2 font-medium">{filteredData.links.length}</span>
-                  </div>
+              {/* Node Limit */}
+              <motion.div {...slideUp} transition={{ delay: 0.25 }} className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                    Node Limit
+                  </label>
+                  <span className="text-xs font-mono font-bold">{filters.nodeLimit}</span>
                 </div>
-              </div>
+                <input
+                  type="range"
+                  min={50}
+                  max={500}
+                  step={50}
+                  value={filters.nodeLimit}
+                  onChange={(e) => setFilters(f => ({ ...f, nodeLimit: parseInt(e.target.value) }))}
+                  className="w-full h-2 bg-muted rounded-none appearance-none cursor-pointer accent-foreground"
+                />
+                <div className="flex justify-between text-[10px] font-mono text-muted-foreground mt-1">
+                  <span>50</span>
+                  <span>500</span>
+                </div>
+              </motion.div>
 
-              {/* Instructions */}
-              <div className="absolute bottom-4 right-4 text-xs text-slate-500">
-                Left-click: Select • Drag: Rotate • Scroll: Zoom • Right-drag: Pan
-              </div>
-            </>
+              {/* Controls */}
+              <motion.div {...slideUp} transition={{ delay: 0.3 }} className="space-y-2">
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
+                  Controls
+                </label>
+                <motion.button
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={centerGraph}
+                  className="w-full flex items-center gap-3 p-3 border-2 border-border hover:border-foreground font-mono text-xs uppercase tracking-wider transition-colors"
+                >
+                  <Target className="w-4 h-4" />
+                  Center View
+                </motion.button>
+                <motion.button
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => loadVisualization()}
+                  className="w-full flex items-center gap-3 p-3 border-2 border-border hover:border-foreground font-mono text-xs uppercase tracking-wider transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Reload Data
+                </motion.button>
+                {selectedNode && (
+                  <motion.button
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    whileHover={{ x: 2 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleBackgroundClick}
+                    className="w-full flex items-center gap-3 p-3 border-2 border-border hover:border-foreground font-mono text-xs uppercase tracking-wider transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    Clear Selection
+                  </motion.button>
+                )}
+              </motion.div>
+
+              {/* Legend */}
+              <motion.div {...slideUp} transition={{ delay: 0.35 }} className="mt-6 pt-6 border-t-2 border-border">
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
+                  Relationships
+                </label>
+                <div className="space-y-2">
+                  {Object.entries(LINK_COLORS).filter(([k]) => k !== 'default').slice(0, 6).map(([type, color]) => (
+                    <div key={type} className="flex items-center gap-3">
+                      <div className="w-6 h-0.5" style={{ backgroundColor: color }} />
+                      <span className="text-xs font-mono text-muted-foreground">{type.replace('_', ' ')}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.aside>
           )}
+        </AnimatePresence>
 
-          {/* ============================================ */}
-          {/* INSIGHTS VIEW */}
-          {/* ============================================ */}
-          {activeView === 'insights' && (
-            <div className="p-6 overflow-y-auto h-full">
-              <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Burnout Risk */}
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-                  <div className="px-6 py-4 border-b border-slate-700 bg-linear-to-r from-red-900/30 to-orange-900/30">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      🔥 Burnout Risk Detection
-                    </h3>
-                    <p className="text-sm text-slate-400 mt-1">Developers with high activity levels</p>
-                  </div>
-                  <div className="p-4">
-                    {insights.burnoutRisk ? (
+        {/* Main Graph Area */}
+        <main className="flex-1 relative bg-background">
+          <ForceGraph3D
+            ref={graphRef}
+            graphData={filteredData}
+            nodeThreeObject={nodeThreeObject}
+            nodeLabel={() => ''}
+            linkColor={getLinkColor}
+            linkWidth={getLinkWidth}
+            linkDirectionalArrowLength={4}
+            linkDirectionalArrowRelPos={1}
+            linkOpacity={0.7}
+            onNodeClick={handleNodeClick}
+            onBackgroundClick={handleBackgroundClick}
+            backgroundColor="#fafafa"
+            showNavInfo={false}
+            enableNodeDrag={true}
+            enableNavigationControls={true}
+            controlType="orbit"
+          />
+
+          {/* Stats Bar */}
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="absolute bottom-4 left-4 flex items-center gap-4 bg-background/95 backdrop-blur-sm border-2 border-border px-4 py-2"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-success rounded-full" />
+              <span className="text-xs font-mono">
+                <span className="text-muted-foreground">Nodes:</span>{' '}
+                <span className="font-bold">{filteredData.nodes.length}</span>
+              </span>
+            </div>
+            <div className="w-px h-4 bg-border" />
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono">
+                <span className="text-muted-foreground">Edges:</span>{' '}
+                <span className="font-bold">{filteredData.links.length}</span>
+              </span>
+            </div>
+          </motion.div>
+
+          {/* Instructions */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="absolute bottom-4 right-4 text-[10px] font-mono text-muted-foreground uppercase tracking-wider"
+          >
+            Click: Select • Drag: Rotate • Scroll: Zoom
+          </motion.div>
+        </main>
+
+        {/* Right Sidebar - Insights */}
+        <AnimatePresence>
+          {showInsights && (
+            <motion.aside
+              initial={{ x: 320, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 320, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="w-80 shrink-0 border-l-2 border-border bg-background p-4 overflow-y-auto z-10"
+            >
+              {loadingInsights ? (
+                <div className="flex flex-col items-center justify-center h-full py-12">
+                  <motion.div 
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-8 h-8 border-2 border-border border-t-foreground mb-4"
+                  />
+                  <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                    Loading insights...
+                  </p>
+                </div>
+              ) : (
+                <>
+              <motion.div {...slideUp} transition={{ delay: 0.1 }}>
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
+                  AI Insights
+                </label>
+                <div className="space-y-2">
+                  <InsightCard
+                    title="Burnout Risk"
+                    description="Developers with high activity"
+                    icon={<Flame className="w-5 h-5" />}
+                    color="#ef4444"
+                    selected={filters.selectedInsight === 'burnout'}
+                    onClick={() => setFilters(f => ({ ...f, selectedInsight: f.selectedInsight === 'burnout' ? 'none' : 'burnout' }))}
+                    delay={0.15}
+                  />
+                  <InsightCard
+                    title="Knowledge Silos"
+                    description="Single-owner files"
+                    icon={<AlertTriangle className="w-5 h-5" />}
+                    color="#f59e0b"
+                    selected={filters.selectedInsight === 'silos'}
+                    onClick={() => setFilters(f => ({ ...f, selectedInsight: f.selectedInsight === 'silos' ? 'none' : 'silos' }))}
+                    delay={0.2}
+                  />
+                  <InsightCard
+                    title="Hidden Costs"
+                    description="Ticket cost analysis"
+                    icon={<DollarSign className="w-5 h-5" />}
+                    color="#22c55e"
+                    selected={filters.selectedInsight === 'costs'}
+                    onClick={() => setFilters(f => ({ ...f, selectedInsight: f.selectedInsight === 'costs' ? 'none' : 'costs' }))}
+                    delay={0.25}
+                  />
+                  <InsightCard
+                    title="Velocity"
+                    description="Developer throughput"
+                    icon={<Zap className="w-5 h-5" />}
+                    color="#3b82f6"
+                    selected={filters.selectedInsight === 'velocity'}
+                    onClick={() => setFilters(f => ({ ...f, selectedInsight: f.selectedInsight === 'velocity' ? 'none' : 'velocity' }))}
+                    delay={0.3}
+                  />
+                </div>
+              </motion.div>
+
+              {/* Insight Details */}
+              <AnimatePresence mode="wait">
+                {filters.selectedInsight !== 'none' && (
+                  <motion.div
+                    key={filters.selectedInsight}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="mt-6 pt-6 border-t-2 border-border"
+                  >
+                    {filters.selectedInsight === 'burnout' && insights.burnoutRisk && (
                       <>
-                        <div className="grid grid-cols-4 gap-3 mb-4">
+                        <div className="grid grid-cols-2 gap-2 mb-4">
                           {[
-                            { label: 'Critical', value: insights.burnoutRisk.summary.critical_risk, color: 'text-red-400' },
-                            { label: 'High', value: insights.burnoutRisk.summary.high_risk, color: 'text-orange-400' },
-                            { label: 'Medium', value: insights.burnoutRisk.summary.medium_risk, color: 'text-yellow-400' },
-                            { label: 'Low', value: insights.burnoutRisk.summary.low_risk, color: 'text-green-400' }
-                          ].map(item => (
-                            <div key={item.label} className="bg-slate-900/50 rounded-lg p-3 text-center">
-                              <div className={`text-2xl font-bold ${item.color}`}>{item.value}</div>
-                              <div className="text-xs text-slate-500">{item.label}</div>
-                            </div>
+                            { label: 'Critical', value: insights.burnoutRisk.summary.critical_risk, color: 'text-red-500' },
+                            { label: 'High', value: insights.burnoutRisk.summary.high_risk, color: 'text-orange-500' },
+                            { label: 'Medium', value: insights.burnoutRisk.summary.medium_risk, color: 'text-yellow-500' },
+                            { label: 'Low', value: insights.burnoutRisk.summary.low_risk, color: 'text-green-500' }
+                          ].map((item, i) => (
+                            <motion.div 
+                              key={item.label}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: i * 0.05 }}
+                              className="border-2 border-border p-3 text-center"
+                            >
+                              <div className={`text-xl font-bold ${item.color}`}>{item.value}</div>
+                              <div className="text-[10px] font-mono text-muted-foreground uppercase">{item.label}</div>
+                            </motion.div>
                           ))}
                         </div>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {insights.burnoutRisk.developers.slice(0, 5).map((dev, i) => (
-                            <div key={i} className="flex items-center justify-between p-2 bg-slate-900/30 rounded-lg">
-                              <div>
-                                <span className="text-white">{dev.developer}</span>
-                                <span className="text-slate-500 text-sm ml-2">({dev.commit_count} commits)</span>
-                              </div>
-                              <span className={`text-xs px-2 py-1 rounded ${
-                                dev.risk_level === 'CRITICAL' ? 'bg-red-900/50 text-red-400' :
-                                dev.risk_level === 'HIGH' ? 'bg-orange-900/50 text-orange-400' :
-                                dev.risk_level === 'MEDIUM' ? 'bg-yellow-900/50 text-yellow-400' :
-                                'bg-green-900/50 text-green-400'
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {insights.burnoutRisk.developers.slice(0, 8).map((dev, i) => (
+                            <motion.div 
+                              key={i}
+                              initial={{ opacity: 0, x: 10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.2 + i * 0.05 }}
+                              className="flex items-center justify-between p-2 border border-border"
+                            >
+                              <span className="text-sm font-mono truncate flex-1">{dev.developer}</span>
+                              <span className={`text-[10px] font-mono px-2 py-0.5 ${
+                                dev.risk_level === 'CRITICAL' ? 'bg-red-500/20 text-red-500' :
+                                dev.risk_level === 'HIGH' ? 'bg-orange-500/20 text-orange-500' :
+                                dev.risk_level === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-500' :
+                                'bg-green-500/20 text-green-500'
                               }`}>{dev.risk_level}</span>
-                            </div>
+                            </motion.div>
                           ))}
                         </div>
                       </>
-                    ) : (
-                      <p className="text-slate-500 text-center py-4">Loading...</p>
                     )}
-                  </div>
-                </div>
-
-                {/* Knowledge Silos */}
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-                  <div className="px-6 py-4 border-b border-slate-700 bg-linear-to-r from-amber-900/30 to-yellow-900/30">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      🚧 Knowledge Silos
-                    </h3>
-                    <p className="text-sm text-slate-400 mt-1">Files modified by only one developer</p>
-                  </div>
-                  <div className="p-4">
-                    {insights.silos ? (
+                    
+                    {filters.selectedInsight === 'silos' && insights.silos && (
                       <>
-                        <div className="text-center mb-4">
-                          <div className="text-4xl font-bold text-amber-400">{insights.silos.count}</div>
-                          <div className="text-sm text-slate-500">Siloed Files Detected</div>
+                        <div className="text-center mb-4 p-4 border-2 border-border">
+                          <div className="text-3xl font-bold text-warning">{insights.silos.count}</div>
+                          <div className="text-[10px] font-mono text-muted-foreground uppercase">Siloed Files</div>
                         </div>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {insights.silos.silos.slice(0, 5).map((silo, i) => (
-                            <div key={i} className="p-2 bg-slate-900/30 rounded-lg">
-                              <div className="flex justify-between">
-                                <span className="text-white font-mono text-sm truncate max-w-[200px]">{silo.filename}</span>
-                                <span className={`text-xs px-2 py-1 rounded ${
-                                  silo.risk_level === 'HIGH' ? 'bg-red-900/50 text-red-400' :
-                                  silo.risk_level === 'MEDIUM' ? 'bg-yellow-900/50 text-yellow-400' :
-                                  'bg-green-900/50 text-green-400'
-                                }`}>{silo.risk_level}</span>
-                              </div>
-                              <div className="text-slate-500 text-xs mt-1">
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {insights.silos.silos.slice(0, 8).map((silo, i) => (
+                            <motion.div 
+                              key={i}
+                              initial={{ opacity: 0, x: 10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.2 + i * 0.05 }}
+                              className="p-2 border border-border"
+                            >
+                              <div className="text-xs font-mono truncate">{silo.filename}</div>
+                              <div className="text-[10px] text-muted-foreground mt-1">
                                 Owner: {silo.sole_owner} • {silo.total_commits} commits
                               </div>
-                            </div>
+                            </motion.div>
                           ))}
                         </div>
                       </>
-                    ) : (
-                      <p className="text-slate-500 text-center py-4">Loading...</p>
                     )}
-                  </div>
-                </div>
 
-                {/* Hidden Costs */}
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-                  <div className="px-6 py-4 border-b border-slate-700 bg-linear-to-r from-emerald-900/30 to-green-900/30">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      💰 Hidden Costs
-                    </h3>
-                    <p className="text-sm text-slate-400 mt-1">Estimated cost per ticket based on developer time</p>
-                  </div>
-                  <div className="p-4">
-                    {insights.hiddenCosts ? (
+                    {filters.selectedInsight === 'costs' && insights.hiddenCosts && (
                       <>
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                          <div className="bg-slate-900/50 rounded-lg p-3 text-center">
-                            <div className="text-2xl font-bold text-emerald-400">
-                              ${insights.hiddenCosts.summary.total_tracked_cost.toLocaleString()}
+                        <div className="grid grid-cols-2 gap-2 mb-4">
+                          <div className="border-2 border-border p-3 text-center">
+                            <div className="text-xl font-bold text-success">
+                              ${(insights.hiddenCosts.summary.total_tracked_cost / 1000).toFixed(1)}k
                             </div>
-                            <div className="text-xs text-slate-500">Total Tracked Cost</div>
+                            <div className="text-[10px] font-mono text-muted-foreground uppercase">Total Cost</div>
                           </div>
-                          <div className="bg-slate-900/50 rounded-lg p-3 text-center">
-                            <div className="text-2xl font-bold text-emerald-400">
-                              ${Math.round(insights.hiddenCosts.summary.avg_cost_per_ticket).toLocaleString()}
+                          <div className="border-2 border-border p-3 text-center">
+                            <div className="text-xl font-bold text-success">
+                              ${insights.hiddenCosts.summary.avg_cost_per_ticket.toFixed(0)}
                             </div>
-                            <div className="text-xs text-slate-500">Avg Cost/Ticket</div>
+                            <div className="text-[10px] font-mono text-muted-foreground uppercase">Avg/Ticket</div>
                           </div>
-                        </div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {insights.hiddenCosts.tickets.slice(0, 4).map((ticket, i) => (
-                            <div key={i} className="flex items-center justify-between p-2 bg-slate-900/30 rounded-lg">
-                              <div>
-                                <span className="text-white font-mono">{ticket.ticket}</span>
-                                <span className="text-slate-500 text-xs ml-2 truncate max-w-[150px] inline-block">{ticket.title}</span>
-                              </div>
-                              <span className="text-emerald-400 font-semibold">${Math.round(ticket.total_cost)}</span>
-                            </div>
-                          ))}
                         </div>
                       </>
-                    ) : (
-                      <p className="text-slate-500 text-center py-4">Loading...</p>
                     )}
-                  </div>
-                </div>
 
-                {/* Velocity */}
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-                  <div className="px-6 py-4 border-b border-slate-700 bg-linear-to-r from-blue-900/30 to-indigo-900/30">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      🚀 Ticket Velocity
-                    </h3>
-                    <p className="text-sm text-slate-400 mt-1">Developer productivity by completed tickets</p>
-                  </div>
-                  <div className="p-4">
-                    {insights.velocity ? (
-                      <div className="space-y-2 max-h-56 overflow-y-auto">
-                        {insights.velocity.developers.slice(0, 6).map((dev, i) => (
-                          <div key={i} className="p-3 bg-slate-900/30 rounded-lg">
-                            <div className="flex justify-between items-center">
-                              <span className="text-white">{dev.developer}</span>
-                              <span className="text-blue-400 font-bold">{dev.total_points || 0} pts</span>
-                            </div>
-                            <div className="flex justify-between text-xs text-slate-500 mt-1">
-                              <span>{dev.completed_tickets} tickets completed</span>
-                              <span>{dev.total_points && dev.completed_tickets ? 
-                                Math.round(dev.total_points / dev.completed_tickets * 10) / 10 : 0} pts/ticket
-                              </span>
-                            </div>
-                            <div className="mt-2 bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                              <div 
-                                className="bg-blue-500 h-full" 
-                                style={{ width: `${Math.min((dev.total_points || 0) / 50 * 100, 100)}%` }}
-                              />
-                            </div>
-                          </div>
+                    {filters.selectedInsight === 'velocity' && insights.velocity && (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {insights.velocity.developers.slice(0, 8).map((dev, i) => (
+                          <motion.div 
+                            key={i}
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.2 + i * 0.05 }}
+                            className="flex items-center justify-between p-2 border border-border"
+                          >
+                            <span className="text-sm font-mono truncate flex-1">{dev.developer}</span>
+                            <span className="text-[10px] font-mono text-accent">
+                              {dev.total_points} pts
+                            </span>
+                          </motion.div>
                         ))}
                       </div>
-                    ) : (
-                      <p className="text-slate-500 text-center py-4">Loading...</p>
                     )}
-                  </div>
-                </div>
-              </div>
-            </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+                </>
+              )}
+            </motion.aside>
           )}
+        </AnimatePresence>
 
-          {/* ============================================ */}
-          {/* STATUS VIEW */}
-          {/* ============================================ */}
-          {activeView === 'status' && (
-            <div className="p-6 overflow-y-auto h-full">
-              <div className="max-w-3xl mx-auto space-y-6">
-                {/* Connection Status */}
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className={`h-6 w-6 rounded-full ${
-                      status?.status === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-                    }`} />
-                    <div>
-                      <h3 className="text-xl font-semibold text-white capitalize">{status?.status || 'Unknown'}</h3>
-                      {status?.connection?.server && (
-                        <p className="text-sm text-slate-400">{status.connection.server}</p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {status?.stats && (
-                    <div className="grid grid-cols-4 gap-4">
-                      <div className="bg-slate-900/50 rounded-lg p-4 text-center">
-                        <div className="text-3xl font-bold text-blue-400">{status.stats.nodeCount}</div>
-                        <div className="text-sm text-slate-500">Total Nodes</div>
-                      </div>
-                      <div className="bg-slate-900/50 rounded-lg p-4 text-center">
-                        <div className="text-3xl font-bold text-green-400">{status.stats.relCount}</div>
-                        <div className="text-sm text-slate-500">Relationships</div>
-                      </div>
-                      <div className="bg-slate-900/50 rounded-lg p-4 text-center">
-                        <div className="text-3xl font-bold text-purple-400">{status.stats.labels?.Developer || 0}</div>
-                        <div className="text-sm text-slate-500">Developers</div>
-                      </div>
-                      <div className="bg-slate-900/50 rounded-lg p-4 text-center">
-                        <div className="text-3xl font-bold text-amber-400">{status.stats.labels?.Commit || 0}</div>
-                        <div className="text-sm text-slate-500">Commits</div>
-                      </div>
-                    </div>
-                  )}
+        {/* Selected Node Panel */}
+        <AnimatePresence>
+          {selectedNode && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="absolute top-4 right-4 w-80 bg-background border-2 border-foreground shadow-xl z-20 max-h-[80vh] overflow-hidden flex flex-col"
+            >
+              <div className="p-4 border-b-2 border-border flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-4 h-4 rounded-full" 
+                    style={{ backgroundColor: ACCENT_COLORS[selectedNode.type?.toLowerCase()] || ACCENT_COLORS.default }} 
+                  />
+                  <h3 className="font-semibold truncate">{selectedNode.name || selectedNode.label}</h3>
                 </div>
-
-                {/* Features */}
-                {status?.features && (
-                  <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Active Features</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      {status.features.map((feature, i) => (
-                        <div key={i} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg">
-                          <div className="h-2 w-2 rounded-full bg-green-400" />
-                          <span className="text-slate-300">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
+                <motion.button 
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleBackgroundClick}
+                  className="p-1 hover:bg-muted transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </motion.button>
+              </div>
+              <div className="p-4 space-y-3 overflow-y-auto flex-1">
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Type</span>
+                  <p className="capitalize font-mono text-sm">{selectedNode.type}</p>
+                </div>
+                {selectedNode.email && (
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Email</span>
+                    <p className="font-mono text-sm">{selectedNode.email}</p>
                   </div>
                 )}
-
-                {/* Graph Architecture */}
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4">Graph Architecture</h3>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-400 mb-2">Node Types</h4>
-                      <ul className="space-y-2">
-                        {Object.entries(NODE_COLORS).filter(([k]) => k !== 'default').map(([type, color]) => (
-                          <li key={type} className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-                            <span className="text-slate-300 capitalize">{type}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-400 mb-2">Relationships</h4>
-                      <ul className="space-y-2 text-sm text-slate-400">
-                        <li>Developer → AUTHORED → Commit</li>
-                        <li>Commit → LINKED_TO → Ticket</li>
-                        <li>Commit → MODIFIED → File</li>
-                        <li>Ticket → ASSIGNED_TO → Developer</li>
-                      </ul>
-                    </div>
+                {selectedNode.team && (
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Team</span>
+                    <p className="font-mono text-sm">{selectedNode.team}</p>
                   </div>
+                )}
+                {selectedNode.role && (
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Role</span>
+                    <p className="font-mono text-sm">{selectedNode.role}</p>
+                  </div>
+                )}
+                {selectedNode.status && (
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Status</span>
+                    <p className={`inline-block px-2 py-0.5 text-xs font-mono ${
+                      selectedNode.status === 'Done' ? 'bg-success/20 text-success' :
+                      selectedNode.status === 'In Progress' ? 'bg-warning/20 text-warning' :
+                      'bg-muted text-muted-foreground'
+                    }`}>{selectedNode.status}</p>
+                  </div>
+                )}
+                
+                {/* Clickable Connections Section */}
+                <div className="pt-3 border-t border-border">
+                  <motion.button
+                    onClick={() => setShowRelationships(!showRelationships)}
+                    className="w-full flex items-center justify-between group"
+                    whileHover={{ x: 2 }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Link2 className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Connections</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-bold">{connectedNodesList.length}</span>
+                      <motion.div
+                        animate={{ rotate: showRelationships ? 90 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      </motion.div>
+                    </div>
+                  </motion.button>
+                  
+                  <AnimatePresence>
+                    {showRelationships && connectedNodesList.length > 0 && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="mt-3 space-y-1 overflow-hidden"
+                      >
+                        {connectedNodesList.map((connection, i) => (
+                          <motion.button
+                            key={`${connection.node.id}-${i}`}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                            onClick={() => handleConnectedNodeClick(connection.node)}
+                            className="w-full flex items-center gap-2 p-2 border border-border hover:border-foreground hover:bg-muted/50 transition-all text-left group"
+                          >
+                            <div 
+                              className="w-3 h-3 rounded-full shrink-0" 
+                              style={{ backgroundColor: ACCENT_COLORS[connection.node.type?.toLowerCase()] || ACCENT_COLORS.default }} 
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-mono text-xs truncate group-hover:text-foreground">
+                                {connection.node.name || connection.node.label}
+                              </p>
+                              <p className="text-[9px] text-muted-foreground font-mono">
+                                {connection.direction === 'out' ? '→' : '←'} {connection.linkType.replace('_', ' ')}
+                              </p>
+                            </div>
+                            <ChevronRight className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </motion.button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
-        </main>
+        </AnimatePresence>
       </div>
     </div>
   )
 }
+
+export default KnowledgeGraph3D

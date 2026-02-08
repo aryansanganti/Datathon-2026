@@ -4,7 +4,7 @@ const UserSchema = new mongoose.Schema(
   {
     // ---- Identity (Unified) ----
     user_id: { type: String, required: true, unique: true }, // e.g. "github:12345" or "manual:EMP001"
-    employee_id: { type: String, unique: true }, // e.g. "TECH001" (optional for external users)
+    employee_id: { type: String, unique: true, sparse: true }, // e.g. "TECH001" (optional for external users)
 
     source: {
       type: String,

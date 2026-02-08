@@ -109,6 +109,10 @@ function generateEmail(username) {
     return `${username}@company.com`;
 }
 
+function generateEmployeeId(index) {
+    return `MOCK-${String(index).padStart(4, '0')}`;
+}
+
 function generateCommitSha() {
     return Array.from({ length: 40 }, () => 
         '0123456789abcdef'[Math.floor(Math.random() * 16)]
@@ -171,6 +175,7 @@ async function seedDatabase() {
 
                 const user = await User.create({
                     user_id: `mock:${username}`,
+                    employee_id: generateEmployeeId(userIndex),
                     source: 'Mock',
                     source_user_id: username,
                     display_name: `${firstName} ${lastName}`,
@@ -217,6 +222,7 @@ async function seedDatabase() {
 
             const user = await User.create({
                 user_id: `mock:${username}`,
+                employee_id: generateEmployeeId(userIndex),
                 source: 'Mock',
                 source_user_id: username,
                 display_name: `${firstName} ${lastName}`,

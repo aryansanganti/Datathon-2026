@@ -330,9 +330,10 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
           </p>
           <button 
             onClick={() => onBack ? onBack() : navigate('/')} 
-            className="px-6 py-3 bg-foreground text-background font-mono text-sm uppercase tracking-wider hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 px-4 py-2 border-2 border-foreground bg-foreground text-background font-mono text-xs uppercase tracking-wider hover:opacity-90 transition-opacity"
           >
-            ← Back to Allocation
+            <ArrowLeft className="w-4 h-4" />
+            Dashboard
           </button>
         </div>
       </div>
@@ -347,12 +348,15 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <button 
+            <motion.button 
               onClick={() => onBack ? onBack() : navigate('/')}
-              className="p-2 hover:bg-muted transition-colors"
+              whileHover={{ x: -2 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 px-4 py-2 border-2 border-foreground bg-foreground text-background font-mono text-xs uppercase tracking-wider hover:opacity-90 transition-all"
             >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
+              <ArrowLeft className="w-4 h-4" />
+              Dashboard
+            </motion.button>
             <div>
               <h2 className="text-xl font-semibold tracking-tight">Delay Prediction Simulator</h2>
               <p className="text-sm text-muted-foreground mt-1">Interactive "what-if" scenario analysis</p>

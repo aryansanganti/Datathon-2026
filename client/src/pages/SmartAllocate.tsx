@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
+import { ArrowLeft } from "lucide-react";
 import FeatureInput from "@/components/FeatureInput";
 import TimelineGraph from "@/components/TimelineGraph";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
@@ -57,9 +58,10 @@ interface AllocationData {
 
 interface SmartAllocateProps {
   onNavigateToDelay?: (data: AllocationData) => void;
+  onBack?: () => void;
 }
 
-const SmartAllocate = ({ onNavigateToDelay }: SmartAllocateProps) => {
+const SmartAllocate = ({ onNavigateToDelay, onBack }: SmartAllocateProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -99,15 +101,28 @@ const SmartAllocate = ({ onNavigateToDelay }: SmartAllocateProps) => {
       {/* Header */}
       <header className="border-b-2 border-foreground">
         <div className="container py-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-foreground flex items-center justify-center">
-              <span className="text-background font-mono font-bold text-sm">AI</span>
-            </div>
-            <div>
-              <h1 className="font-semibold tracking-tight text-sm">Project Allocator</h1>
-              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-                Intelligent Resource Management
-              </p>
+          <div className="flex items-center gap-4">
+            {onBack && (
+              <motion.button
+                whileHover={{ x: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onBack}
+                className="flex items-center gap-2 px-4 py-2 border-2 border-foreground bg-foreground text-background font-mono text-xs uppercase tracking-wider hover:opacity-90 transition-all"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Dashboard
+              </motion.button>
+            )}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-foreground flex items-center justify-center">
+                <span className="text-background font-mono font-bold text-sm">AI</span>
+              </div>
+              <div>
+                <h1 className="font-semibold tracking-tight text-sm">Project Allocator</h1>
+                <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+                  Intelligent Resource Management
+                </p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
