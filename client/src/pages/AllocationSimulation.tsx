@@ -140,6 +140,34 @@ function generateJiraTickets(
   });
 }
 
+// Save tasks to database
+async function saveTasksToDatabase(allocationData: AllocationData): Promise<void> {
+  try {
+    const response = await fetch('/api/tasks/save-allocation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tasks: allocationData.tasks,
+        deadline_weeks: allocationData.deadline_weeks,
+      }),
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      console.error('Failed to save tasks:', result);
+      throw new Error(result.error || 'Failed to save tasks');
+    }
+
+    console.log('✅ Tasks saved to database:', result);
+  } catch (error) {
+    console.error('Error saving tasks to database:', error);
+    // Don't throw - just log the error so simulation can complete
+  }
+}
+
 // Animation phases
 type SimulationPhase =
   | "idle"
@@ -423,6 +451,10 @@ export default function AllocationSimulation({
       setStatusMessage(`Creating ${tickets[i].key}: ${tickets[i].summary}...`);
       await new Promise((r) => setTimeout(r, 400));
     }
+
+    // Save tasks to database
+    setStatusMessage("Saving tasks to database...");
+    await saveTasksToDatabase(allocationData);
 
     setPhase("complete");
     setStatusMessage("✓ Allocation simulation complete!");

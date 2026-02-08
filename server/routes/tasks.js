@@ -2,6 +2,99 @@ const express = require('express');
 const router = express.Router();
 const { allocateTask, allocateTaskSequential, allocateTaskHierarchical, loadEmployeeData, TASK_TEMPLATES } = require('../services/taskAllocator');
 const { runStreamingAllocation } = require('../services/streamingAllocation');
+const Task = require('../models/Task');
+const User = require('../models/User');
+
+/**
+ * POST /api/tasks/save-allocation
+ * Save allocated tasks to database from allocation simulation
+ */
+router.post('/save-allocation', async (req, res) => {
+  try {
+    const { tasks, deadline_weeks } = req.body;
+    
+    if (!tasks || !Array.isArray(tasks)) {
+      return res.status(400).json({ success: false, error: 'Tasks array is required' });
+    }
+
+    const savedTasks = [];
+    const errors = [];
+
+    for (const taskData of tasks) {
+      try {
+        // Find the allocated user by ID
+        let allocatedUser = null;
+        if (taskData.assigned_employee_ids && taskData.assigned_employee_ids.length > 0) {
+          const employeeId = taskData.assigned_employee_ids[0];
+          allocatedUser = await User.findOne({ user_id: employeeId });
+        }
+
+        // Determine role_required from task description or skills
+        const roleRequired = determineRole(taskData.required_skills, taskData.description);
+
+        // Calculate deadline
+        const deadline = new Date();
+        deadline.setDate(deadline.getDate() + (deadline_weeks || 4) * 7);
+
+        // Create task document
+        const task = new Task({
+          task_id: taskData.id,
+          title: taskData.title,
+          description: taskData.description || '',
+          role_required: roleRequired,
+          priority: taskData.estimated_hours > 20 ? 'high' : taskData.estimated_hours > 10 ? 'medium' : 'low',
+          deadline: deadline,
+          estimated_hours: taskData.estimated_hours,
+          status: allocatedUser ? 'allocated' : 'pending',
+          allocated_to: allocatedUser ? allocatedUser._id : null,
+          jira_issue_key: `PROJ-${taskData.id.split('-').pop()}`,
+          synced_to_jira: false,
+        });
+
+        await task.save();
+        savedTasks.push(task);
+      } catch (err) {
+        console.error(`Error saving task ${taskData.id}:`, err);
+        errors.push({ task_id: taskData.id, error: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      saved: savedTasks.length,
+      errors: errors.length > 0 ? errors : undefined,
+      tasks: savedTasks
+    });
+
+  } catch (error) {
+    console.error('Error saving allocation:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Helper function to determine role from skills
+ */
+function determineRole(skills, description) {
+  const skillsStr = skills.join(' ').toLowerCase();
+  const descStr = (description || '').toLowerCase();
+  const combined = `${skillsStr} ${descStr}`;
+
+  if (combined.includes('react') || combined.includes('vue') || combined.includes('frontend') || combined.includes('ui') || combined.includes('css')) {
+    return 'frontend';
+  }
+  if (combined.includes('node') || combined.includes('python') || combined.includes('backend') || combined.includes('api') || combined.includes('database')) {
+    return 'backend';
+  }
+  if (combined.includes('test') || combined.includes('qa') || combined.includes('quality')) {
+    return 'qa';
+  }
+  if (combined.includes('devops') || combined.includes('docker') || combined.includes('kubernetes') || combined.includes('ci/cd')) {
+    return 'devops';
+  }
+  
+  return 'backend'; // Default
+}
 
 /**
  * GET /api/tasks/employees
