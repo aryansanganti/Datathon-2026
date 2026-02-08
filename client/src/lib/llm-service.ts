@@ -2,6 +2,7 @@ import type { EmployeeData, LLMAllocationResponse, TaskData } from './types';
 import { fetchEmployees } from './api-service';
 
 const FEATHERLESS_API_URL = 'https://api.featherless.ai/v1/chat/completions';
+const FEATHERLESS_API_KEY = import.meta.env.VITE_FEATHERLESS_API_KEY || '';
 
 // Flag to use MongoDB data vs mock data
 const USE_MONGODB = import.meta.env.VITE_USE_MONGODB === 'true';
@@ -477,7 +478,6 @@ type Priority = "low" | "medium" | "high";
 export const getAllocationFromLLM = async (
   featureName: string,
   details: string,
-  apiKey: string,
   budget: number | null = 10000,
   techStack: string[] = [],
   deadlineWeeks: number = 4,
@@ -488,6 +488,8 @@ export const getAllocationFromLLM = async (
   // Use provided employees or fetch from cache/mock
   const employeesToUse = customEmployees || (await getEmployees());
   const availableEmployees = employeesToUse.filter(e => e.availability);
+  
+  const apiKey = FEATHERLESS_API_KEY;
   
   // If no API key, use smart fallback immediately
   if (!apiKey || apiKey.trim() === '') {

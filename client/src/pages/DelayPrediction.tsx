@@ -321,8 +321,8 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
 
   if (!originalData) {
     return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-4xl mx-auto text-center">
+      <div className="w-full bg-background py-12">
+        <div className="max-w-4xl mx-auto text-center px-6">
           <AlertTriangle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-4">No Allocation Data</h1>
           <p className="text-muted-foreground mb-8">
@@ -342,26 +342,26 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
   const currentBudget = originalData.budget * (budgetPercent / 100);
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="w-full bg-background pb-8">
+      <div className="max-w-7xl mx-auto px-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 pt-4">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => onBack ? onBack() : navigate('/')}
-              className="p-2 hover:bg-muted transition-colors"
+              className="p-2 hover:bg-muted rounded-lg transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Delay Prediction Simulator</h2>
-              <p className="text-sm text-muted-foreground mt-1">Interactive "what-if" scenario analysis</p>
+              <h2 className="text-2xl font-semibold tracking-tight">Delay Prediction Simulator</h2>
+              <p className="text-base text-muted-foreground mt-1">Interactive "what-if" scenario analysis</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={resetAll}
-              className="flex items-center gap-2 px-4 py-2 border-2 border-border text-sm font-mono uppercase tracking-wider hover:bg-muted transition-colors"
+              className="flex items-center gap-2 px-4 py-2 border-2 border-border text-sm font-mono uppercase tracking-wider hover:bg-muted transition-colors rounded-lg"
             >
               <RotateCcw className="w-4 h-4" />
               Reset
@@ -370,7 +370,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
               key={prediction?.risk_level}
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
-              className={`px-4 py-2 ${getRiskBg(prediction?.risk_level || 'low')} text-white font-mono text-sm uppercase tracking-wider`}
+              className={`px-4 py-2 rounded-lg ${getRiskBg(prediction?.risk_level || 'low')} text-white font-mono text-sm uppercase tracking-wider`}
             >
               {prediction?.risk_level || 'low'} risk
             </motion.div>
@@ -435,7 +435,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * idx }}
-              className={`p-4 border-2 ${stat.highlight ? 'border-foreground' : 'border-border'} ${stat.bgColor}`}
+              className={`p-4 border-2 rounded-lg ${stat.highlight ? 'border-foreground' : 'border-border'} ${stat.bgColor}`}
             >
               <div className="flex items-center gap-2 mb-2">
                 <stat.icon className={`w-4 h-4 ${stat.color}`} />
@@ -462,7 +462,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="p-6 border-2 border-border"
+              className="p-6 border-2 border-border rounded-lg bg-card"
             >
               <h3 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
@@ -496,7 +496,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="p-6 border-2 border-border"
+              className="p-6 border-2 border-border rounded-lg bg-card"
             >
               <h3 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
@@ -531,7 +531,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
-                className="p-6 border-2 border-border"
+                className="p-6 border-2 border-border rounded-lg bg-card"
               >
                 <h3 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4" />
@@ -558,7 +558,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
-              className="p-6 border-2 border-foreground bg-foreground text-background"
+              className="p-6 border-2 border-foreground bg-foreground text-background rounded-lg"
             >
               <h3 className="text-sm font-mono uppercase tracking-widest mb-4 opacity-70 flex items-center gap-2">
                 <Users className="w-4 h-4" />
@@ -574,7 +574,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 20 }}
-                      className="flex items-center justify-between p-3 bg-background/10 hover:bg-background/20 transition-colors group"
+                      className="flex items-center justify-between p-3 bg-background/10 hover:bg-background/20 transition-colors group rounded-lg"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-background text-foreground flex items-center justify-center font-mono font-bold text-xs">
@@ -611,7 +611,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.7 }}
-              className="p-6 border-2 border-destructive/50 bg-destructive/5"
+              className="p-6 border-2 border-destructive/50 bg-destructive/5 rounded-lg"
             >
               <h3 className="text-sm font-mono uppercase tracking-widest text-destructive mb-4 flex items-center gap-2">
                 <X className="w-4 h-4" />
@@ -627,7 +627,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
-                      className="flex items-center justify-between p-3 bg-muted/50 hover:bg-muted transition-colors group"
+                      className="flex items-center justify-between p-3 bg-muted/50 hover:bg-muted transition-colors group rounded-lg"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-muted-foreground/20 text-muted-foreground flex items-center justify-center font-mono font-bold text-xs">
@@ -663,7 +663,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.8 }}
-              className={`p-6 border-2 ${prediction?.risk_level === 'critical' ? 'border-destructive bg-destructive/10' : 
+              className={`p-6 border-2 rounded-lg ${prediction?.risk_level === 'critical' ? 'border-destructive bg-destructive/10' : 
                 prediction?.risk_level === 'high' ? 'border-orange-500 bg-orange-500/10' :
                 prediction?.risk_level === 'medium' ? 'border-yellow-500 bg-yellow-500/10' :
                 'border-success bg-success/10'}`}
@@ -687,7 +687,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
                   key={prediction?.risk_level}
                   initial={{ scale: 0.8 }}
                   animate={{ scale: 1 }}
-                  className={`mt-4 inline-block px-4 py-2 ${getRiskBg(prediction?.risk_level || 'low')} text-white text-sm font-mono uppercase`}
+                  className={`mt-4 inline-block px-4 py-2 rounded-lg ${getRiskBg(prediction?.risk_level || 'low')} text-white text-sm font-mono uppercase`}
                 >
                   {prediction?.risk_level || 'low'} Risk
                 </motion.div>
@@ -713,7 +713,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.9 }}
-                className="p-6 border-2 border-border"
+                className="p-6 border-2 border-border rounded-lg bg-card"
               >
                 <h3 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
                   <Zap className="w-4 h-4" />
@@ -721,7 +721,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
                 </h3>
                 <div className="space-y-2">
                   {prediction.recommendations.map((rec, idx) => (
-                    <div key={idx} className="flex items-start gap-2 p-3 bg-muted/50">
+                    <div key={idx} className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg">
                       <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
                         rec.priority === 'critical' ? 'bg-destructive' :
                         rec.priority === 'high' ? 'bg-warning' :
@@ -747,7 +747,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1 }}
-                className="p-4 border-2 border-destructive bg-destructive/10 flex items-start gap-4"
+                className="p-4 border-2 border-destructive bg-destructive/10 flex items-start gap-4 rounded-lg"
               >
                 <Flame className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
                 <div>
@@ -765,7 +765,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1.1 }}
-                className="p-4 border-2 border-border bg-muted/50"
+                className="p-4 border-2 border-border bg-muted/50 rounded-lg"
               >
                 <div className="flex items-center gap-2 mb-3">
                   <Shield className="w-5 h-5 text-muted-foreground flex-shrink-0" />
@@ -806,7 +806,7 @@ const DelayPrediction = ({ onBack, allocationDataProp }: DelayPredictionProps) =
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1.2 }}
-                className="p-4 border border-border/50 bg-background/50 flex items-center justify-between"
+                className="p-4 border border-border/50 bg-background/50 flex items-center justify-between rounded-lg"
               >
                 <div className="flex items-center gap-2">
                   <Brain className="w-4 h-4 text-accent" />

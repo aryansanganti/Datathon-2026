@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import EmployeeCard from "./EmployeeCard";
 import type { Employee } from "./EmployeeCard";
 import { useEffect, useState } from "react";
-import { getAllocationFromLLM, getApiKey, saveApiKey, syntheticEmployees, getEmployees } from "@/lib/llm-service";
+import { getAllocationFromLLM, syntheticEmployees, getEmployees } from "@/lib/llm-service";
 import type { EmployeeData, LLMAllocationResponse } from "@/lib/types";
 
 // Convert EmployeeData to the format used by EmployeeCard
@@ -85,8 +85,6 @@ const TimelineGraph = ({ isProcessing, onAllocationComplete, featureData, onNavi
   const [connections, setConnections] = useState<{ from: string; to: string; status: "active" | "rejected" | "matched" }[]>([]);
   const [thinkingMessages, setThinkingMessages] = useState<Record<string, string>>({});
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
-  const [apiKey, setApiKey] = useState<string>(getApiKey() || '');
-  const [showApiKeyInput, setShowApiKeyInput] = useState<boolean>(!getApiKey());
   const [llmStatus, setLlmStatus] = useState<string>('');
   const [allocationComplete, setAllocationComplete] = useState<boolean>(false);
   const [taskError, setTaskError] = useState<{ message: string; suggestion: string } | null>(null);
@@ -157,7 +155,6 @@ const TimelineGraph = ({ isProcessing, onAllocationComplete, featureData, onNavi
         llmResponse = await getAllocationFromLLM(
           featureData.feature,
           featureData.details,
-          apiKey,
           featureData.budget,
           featureData.techStack,
           featureData.deadlineWeeks,
@@ -183,8 +180,7 @@ const TimelineGraph = ({ isProcessing, onAllocationComplete, featureData, onNavi
         setLlmStatus('Using fallback allocation...');
         llmResponse = await getAllocationFromLLM(
           featureData.feature, 
-          featureData.details, 
-          '',
+          featureData.details,
           featureData.budget,
           featureData.techStack,
           featureData.deadlineWeeks,
@@ -408,14 +404,7 @@ const TimelineGraph = ({ isProcessing, onAllocationComplete, featureData, onNavi
     };
 
     runAllocation();
-  }, [isProcessing, onAllocationComplete, featureData, apiKey, employees, employeeData]);
-
-  const handleApiKeySubmit = () => {
-    if (apiKey.trim()) {
-      saveApiKey(apiKey.trim());
-      setShowApiKeyInput(false);
-    }
-  };
+  }, [isProcessing, onAllocationComplete, featureData, employees, employeeData]);
 
   return (
     <div className="w-full">
@@ -701,46 +690,8 @@ const TimelineGraph = ({ isProcessing, onAllocationComplete, featureData, onNavi
           </motion.div>
         )}
 
-        {/* API Key Input */}
-        {showApiKeyInput && !isProcessing && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-background/95 flex items-center justify-center z-20"
-          >
-            <div className="max-w-md w-full p-6 border-2 border-foreground bg-card">
-              <h3 className="text-lg font-semibold mb-2">Featherless AI API Key</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Enter your Featherless AI API key to enable LLM-powered allocation. 
-                Without a key, the system will use intelligent fallback logic.
-              </p>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full px-4 py-3 bg-background border-2 border-foreground text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent mb-4"
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={handleApiKeySubmit}
-                  className="flex-1 py-3 bg-foreground text-background font-mono uppercase tracking-widest text-xs font-semibold hover:bg-accent transition-colors"
-                >
-                  Save Key
-                </button>
-                <button
-                  onClick={() => setShowApiKeyInput(false)}
-                  className="flex-1 py-3 border-2 border-foreground text-foreground font-mono uppercase tracking-widest text-xs font-semibold hover:bg-muted transition-colors"
-                >
-                  Skip (Use Fallback)
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
         {/* Empty state */}
-        {!isProcessing && currentTaskIndex === -1 && !showApiKeyInput && tasks.length === 0 && (
+        {!isProcessing && currentTaskIndex === -1 && tasks.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
