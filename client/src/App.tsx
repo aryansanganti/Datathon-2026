@@ -22,7 +22,7 @@ interface AllocationData {
   tasks: {
     id: string;
     title: string;
-    description?: string; // Merged optional field
+    description: string;
     required_skills: string[];
     estimated_hours: number;
     assigned_employee_ids: string[];
