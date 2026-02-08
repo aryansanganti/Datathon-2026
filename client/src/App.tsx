@@ -14,7 +14,7 @@ import { VoiceChatbot } from "@/components/VoiceChatbot/VoiceChatbot"
 import { motion } from "framer-motion"
 import { ArrowLeft, Briefcase, Users, BarChart3, Brain, Heart, Activity, Database, CheckCircle, XCircle } from "lucide-react"
 
-const API = "/api"
+const API = import.meta.env.VITE_API_URL || "/api"
 
 // --- Interfaces ---
 

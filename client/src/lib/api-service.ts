@@ -1,6 +1,6 @@
 import type { EmployeeData, LLMAllocationResponse } from './types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/smart-allocate';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 // Fetch employees from MongoDB via API
 export const fetchEmployees = async (): Promise<EmployeeData[]> => {
