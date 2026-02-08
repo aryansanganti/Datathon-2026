@@ -1,0 +1,92 @@
+[
+    {
+        "task_id": "TASK-001",
+        "title": "Implement User Authentication",
+        "description": "Create login and signup functionality with JWT tokens. Include password hashing, session management, and OAuth integration.",
+        "role_required": "backend",
+        "priority": "high",
+        "deadline": "2026-02-15",
+        "status": "pending"
+    },
+    {
+        "task_id": "TASK-002",
+        "title": "Design Dashboard UI",
+        "description": "Create responsive dashboard with charts, metrics cards, and data visualization components using React and TailwindCSS.",
+        "role_required": "frontend",
+        "priority": "high",
+        "deadline": "2026-02-14",
+        "status": "pending"
+    },
+    {
+        "task_id": "TASK-003",
+        "title": "Setup CI/CD Pipeline",
+        "description": "Configure GitHub Actions for automated testing, building, and deployment to production environment.",
+        "role_required": "devops",
+        "priority": "medium",
+        "deadline": "2026-02-18",
+        "status": "pending"
+    },
+    {
+        "task_id": "TASK-004",
+        "title": "Write Integration Tests",
+        "description": "Create comprehensive integration tests for API endpoints, database operations, and third-party integrations.",
+        "role_required": "qa",
+        "priority": "medium",
+        "deadline": "2026-02-20",
+        "status": "pending"
+    },
+    {
+        "task_id": "TASK-005",
+        "title": "Optimize Database Queries",
+        "description": "Analyze and optimize slow database queries, add proper indexes, and implement caching strategies.",
+        "role_required": "backend",
+        "priority": "medium",
+        "deadline": "2026-02-16",
+        "status": "pending"
+    },
+    {
+        "task_id": "TASK-006",
+        "title": "Create Mobile Responsive Views",
+        "description": "Ensure all pages are mobile-friendly with proper breakpoints and touch interactions.",
+        "role_required": "frontend",
+        "priority": "high",
+        "deadline": "2026-02-17",
+        "status": "pending"
+    },
+    {
+        "task_id": "TASK-007",
+        "title": "Setup Monitoring and Alerts",
+        "description": "Configure application monitoring, error tracking, and alerting system using tools like Sentry and Datadog.",
+        "role_required": "devops",
+        "priority": "high",
+        "deadline": "2026-02-19",
+        "status": "pending"
+    },
+    {
+        "task_id": "TASK-008",
+        "title": "Perform Security Audit",
+        "description": "Conduct security testing including penetration testing, vulnerability scanning, and code review.",
+        "role_required": "qa",
+        "priority": "high",
+        "deadline": "2026-02-21",
+        "status": "pending"
+    },
+    {
+        "task_id": "TASK-009",
+        "title": "Implement Real-time Notifications",
+        "description": "Add WebSocket support for real-time notifications and live updates across the application.",
+        "role_required": "backend",
+        "priority": "medium",
+        "deadline": "2026-02-22",
+        "status": "pending"
+    },
+    {
+        "task_id": "TASK-010",
+        "title": "Build Analytics Dashboard",
+        "description": "Create analytics dashboard with user behavior tracking, conversion metrics, and custom reports.",
+        "role_required": "frontend",
+        "priority": "low",
+        "deadline": "2026-02-25",
+        "status": "pending"
+    }
+]

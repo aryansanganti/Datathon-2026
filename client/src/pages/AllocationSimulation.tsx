@@ -168,6 +168,31 @@ async function saveTasksToDatabase(allocationData: AllocationData): Promise<void
   }
 }
 
+// Sync tasks to Jira
+async function syncTasksToJira(): Promise<{success: boolean, results?: any, error?: string}> {
+  try {
+    const response = await fetch('/api/jira/sync-tasks', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      console.error('Failed to sync to Jira:', result);
+      return { success: false, error: result.error || 'Failed to sync to Jira' };
+    }
+
+    console.log('✅ Tasks synced to Jira:', result);
+    return { success: true, results: result.results };
+  } catch (error) {
+    console.error('Error syncing tasks to Jira:', error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
 // Animation phases
 type SimulationPhase =
   | "idle"
@@ -191,6 +216,9 @@ export default function AllocationSimulation({
   const [statusMessage, setStatusMessage] = useState(
     "Ready to simulate allocation..."
   );
+  const [jiraSyncing, setJiraSyncing] = useState(false);
+  const [jiraSyncComplete, setJiraSyncComplete] = useState(false);
+  const [jiraSyncResults, setJiraSyncResults] = useState<any>(null);
 
   // Build graph data from allocation
   const { allNodes, allEdges, teams } = useMemo(() => {
@@ -467,6 +495,24 @@ export default function AllocationSimulation({
     }
   }, [allocationData, phase, allNodes.length, runSimulation]);
 
+  // Handle syncing to Jira
+  const handleSyncToJira = async () => {
+    setJiraSyncing(true);
+    setStatusMessage("Syncing tasks to Jira...");
+    
+    const result = await syncTasksToJira();
+    
+    setJiraSyncing(false);
+    
+    if (result.success) {
+      setJiraSyncComplete(true);
+      setJiraSyncResults(result.results);
+      setStatusMessage(`✓ Successfully synced ${result.results?.created || 0} tasks to Jira!`);
+    } else {
+      setStatusMessage(`✗ Failed to sync to Jira: ${result.error}`);
+    }
+  };
+
   if (!allocationData) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
@@ -510,8 +556,50 @@ export default function AllocationSimulation({
             />
             <span className="text-sm font-mono">{statusMessage}</span>
           </div>
-          {phase === "complete" && (
-            <Button onClick={onContinueToDelay} className="gap-2">
+          {phase === "complete" && !jiraSyncComplete && (
+            <Button 
+              onClick={handleSyncToJira} 
+              disabled={jiraSyncing}
+              className="gap-2 font-semibold bg-blue-600 hover:bg-blue-700"
+            >
+              {jiraSyncing ? (
+                <>
+                  <motion.div
+                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  />
+                  Syncing to Jira...
+                </>
+              ) : (
+                <>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2v6" />
+                    <path d="M12 18v4" />
+                    <path d="m4.93 4.93 4.24 4.24" />
+                    <path d="m14.83 14.83 4.24 4.24" />
+                    <path d="M2 12h6" />
+                    <path d="M16 12h6" />
+                    <path d="m4.93 19.07 4.24-4.24" />
+                    <path d="m14.83 9.17 4.24-4.24" />
+                  </svg>
+                  Sync to Jira
+                </>
+              )}
+            </Button>
+          )}
+          {jiraSyncComplete && (
+            <Button onClick={onContinueToDelay} className="gap-2 font-semibold">
               Continue to Delay Prediction
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -795,42 +883,99 @@ export default function AllocationSimulation({
                   Total Hours
                 </span>
               </div>
+              {jiraSyncResults && (
+                <>
+                  <div className="w-px h-10 bg-border" />
+                  <div className="text-center">
+                    <span className="text-2xl font-bold text-green-600">
+                      {jiraSyncResults.created}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      Synced to Jira
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
-            <Button
-              onClick={onContinueToDelay}
-              size="lg"
-              className="gap-2 font-semibold"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            {!jiraSyncComplete ? (
+              <Button
+                onClick={handleSyncToJira}
+                disabled={jiraSyncing}
+                size="lg"
+                className="gap-2 font-semibold bg-blue-600 hover:bg-blue-700"
               >
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              Simulate Delays
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                {jiraSyncing ? (
+                  <>
+                    <motion.div
+                      className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    />
+                    Syncing to Jira...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 2v6" />
+                      <path d="M12 18v4" />
+                      <path d="m4.93 4.93 4.24 4.24" />
+                      <path d="m14.83 14.83 4.24 4.24" />
+                      <path d="M2 12h6" />
+                      <path d="M16 12h6" />
+                      <path d="m4.93 19.07 4.24-4.24" />
+                      <path d="m14.83 9.17 4.24-4.24" />
+                    </svg>
+                    Sync to Jira
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button
+                onClick={onContinueToDelay}
+                size="lg"
+                className="gap-2 font-semibold"
               >
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-              </svg>
-            </Button>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                Allocate Tickets
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </Button>
+            )}
           </div>
         </motion.div>
       )}

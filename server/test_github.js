@@ -12,7 +12,7 @@ async function test() {
 
     try {
         console.log('--- Testing fetchCommits directly ---');
-        const res = await fetchCommits(repoFull, { per_page: 5 });
+        const res = await fetchCommits(repoFull, { per_page: 100 });
         console.log('Result count:', res.data.length);
         if (res.data.length > 0) {
             console.log('First commit:', res.data[0].sha);

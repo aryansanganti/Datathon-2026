@@ -7,10 +7,12 @@ const SyncState = require('../models/SyncState');
 // Import route files
 const taskRoutes = require('./tasks');
 const transcriptRoutes = require('./transcript');
+const jiraRoutes = require('./jira');
 
 // Use routes
 router.use('/tasks', taskRoutes);
 router.use('/transcript', transcriptRoutes);
+router.use('/jira', jiraRoutes);
 const oauthRoutes = require('./oauth');
 const fetchRoutes = require('./fetch');
 const syncRoutes = require('./sync');

@@ -3,38 +3,29 @@ import { fetchEmployees, fetchEnhancedEmployees, fetchDelayPredictionData } from
 
 const FEATHERLESS_API_URL = 'https://api.featherless.ai/v1/chat/completions';
 
-// Flag to use MongoDB data vs mock data
-const USE_MONGODB = import.meta.env.VITE_USE_MONGODB === 'true';
-
 // Cache for employees from MongoDB
 let cachedEmployees: EmployeeData[] | null = null;
 let cachedEnhancedEmployees: any[] | null = null;
 
-// Get employees - from MongoDB or mock data
+// Get employees - always from MongoDB, fallback to mock only on error
 export const getEmployees = async (): Promise<EmployeeData[]> => {
-  console.log('🔍 USE_MONGODB flag:', USE_MONGODB);
-  
-  if (USE_MONGODB) {
-    if (!cachedEmployees) {
-      try {
-        console.log('📡 Fetching employees from MongoDB...');
-        const data = await fetchEmployees();
-        if (data && data.length > 0) {
-          cachedEmployees = data;
-          console.log('✅ Loaded employees from MongoDB:', cachedEmployees.length, cachedEmployees.map(e => e.name));
-        } else {
-          console.warn('⚠️ MongoDB returned empty data, using mock data');
-          return syntheticEmployees;
-        }
-      } catch (error) {
-        console.error('❌ Failed to fetch from MongoDB, using mock data:', error);
+  if (!cachedEmployees) {
+    try {
+      console.log('📡 Fetching employees from MongoDB...');
+      const data = await fetchEmployees();
+      if (data && data.length > 0) {
+        cachedEmployees = data;
+        console.log('✅ Loaded employees from MongoDB:', cachedEmployees.length, cachedEmployees.map(e => e.name));
+      } else {
+        console.warn('⚠️ MongoDB returned empty data, using mock data as fallback');
         return syntheticEmployees;
       }
+    } catch (error) {
+      console.error('❌ Failed to fetch from MongoDB, using mock data as fallback:', error);
+      return syntheticEmployees;
     }
-    return cachedEmployees;
   }
-  console.log('📋 Using mock data (USE_MONGODB is false)');
-  return syntheticEmployees;
+  return cachedEmployees;
 };
 
 // Get enhanced employees with JIRA and GitHub data

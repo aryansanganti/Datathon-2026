@@ -9,6 +9,7 @@ import FinanceROI from "@/pages/FinanceROI"
 import HRPerformance from "@/pages/HRPerformance"
 import HRRetention from "@/pages/HRRetention"
 import AllocationSimulation from "@/pages/AllocationSimulation"
+import { VoiceChatbot } from "@/components/VoiceChatbot/VoiceChatbot"
 import { motion } from "framer-motion"
 import { ArrowLeft, Briefcase, Users, BarChart3, Brain, Heart, Activity, Database, CheckCircle, XCircle } from "lucide-react"
 
@@ -57,13 +58,13 @@ function App() {
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [githubConnected, setGithubConnected] = useState<boolean | null>(null)
   const [oauthMessage, setOauthMessage] = useState<string | null>(null)
-  
+
   const [userRole, setUserRole] = useState<UserRole>('pm')
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [allocationData, setAllocationData] = useState<AllocationData | null>(null)
 
   // --- Effects Merged ---
-  
+
   // Health Check
   useEffect(() => {
     fetch(`${API}/health`)
@@ -128,7 +129,7 @@ function App() {
   if (activeTab === 'allocation-simulation') {
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-background">
-        <AllocationSimulation 
+        <AllocationSimulation
           allocationData={allocationData}
           onBack={() => setActiveTab('smart-allocate')}
           onContinueToDelay={() => setActiveTab('delay-prediction')}
@@ -163,37 +164,38 @@ function App() {
             <div className="flex gap-1">
               <button
                 onClick={() => handleRoleSwitch('pm')}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-mono uppercase border-2 transition-colors ${
-                  userRole === 'pm'
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border hover:border-foreground'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-mono uppercase border-2 transition-colors ${userRole === 'pm'
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'border-border hover:border-foreground'
+                  }`}
               >
                 <Briefcase className="w-4 h-4" />
                 Project Manager
               </button>
               <button
                 onClick={() => handleRoleSwitch('hr')}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-mono uppercase border-2 transition-colors ${
-                  userRole === 'hr'
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border hover:border-foreground'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-mono uppercase border-2 transition-colors ${userRole === 'hr'
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'border-border hover:border-foreground'
+                  }`}
               >
                 <Users className="w-4 h-4" />
                 Human Resources
               </button>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
-             {/* Health Indicator Small */}
-             {health && (
-                <div className="flex items-center gap-2 text-xs font-mono">
-                  <div className={`w-2 h-2 rounded-full ${health.status === 'ok' ? 'bg-green-500' : 'bg-red-500'} animate-pulse`} />
-                  <span className="text-muted-foreground">MADE WITH LOVE BY TEAM $WHOAMI</span>
-                </div>
-             )}
+            {/* Health Indicator Small */}
+            {health && (
+              <div className="flex items-center gap-2 text-xs font-mono">
+                <div className={`w-2 h-2 rounded-full ${health.status === 'ok' ? 'bg-green-500' : 'bg-red-500'} animate-pulse`} />
+                <span className="text-muted-foreground">SYS: {health.status.toUpperCase()}</span>
+              </div>
+            )}
+            <div className="text-xs text-muted-foreground font-mono">
+              Command Center v2.0
+            </div>
           </div>
         </div>
       </div>
@@ -201,15 +203,43 @@ function App() {
       {/* OAuth Notification */}
       {oauthMessage && (
         <div className="max-w-7xl mx-auto px-6 py-2">
-           <div className="bg-primary/10 border border-primary text-primary px-4 py-2 rounded text-sm font-mono flex items-center gap-2">
-              <CheckCircle className="w-4 h-4" /> {oauthMessage}
-           </div>
+          <div className="bg-primary/10 border border-primary text-primary px-4 py-2 rounded text-sm font-mono flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" /> {oauthMessage}
+          </div>
         </div>
       )}
 
       {/* PM Views */}
       {userRole === 'pm' && activeTab === 'dashboard' && (
         <>
+          {/* Health & Metrics Widget - Integrated cleanly above Dashboard */}
+          {health && metrics && (
+            <div className="max-w-7xl mx-auto px-6 py-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="border border-border bg-card p-4 rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">DB Status</span>
+                </div>
+                <span className={`text-xs font-mono px-2 py-1 rounded ${health.db === 'connected' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                  {health.db || 'Unknown'}
+                </span>
+              </div>
+              {/* Simplified Metrics Display */}
+              {Object.entries(metrics.by_source_entity).slice(0, 3).map(([key, val]) => (
+                <div key={key} className="border border-border bg-card p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-mono uppercase text-muted-foreground">{key}</span>
+                    {val.last_latency_ms && <span className="text-[10px] text-muted-foreground">{val.last_latency_ms}ms</span>}
+                  </div>
+                  <div className="flex gap-2 text-xs">
+                    <span className="text-green-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {val.success_count}</span>
+                    <span className="text-red-500 flex items-center gap-1"><XCircle className="w-3 h-3" /> {val.fail_count}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <Dashboard
             onNavigate={(tab) => setActiveTab(tab as Tab)}
             githubConnected={githubConnected}
@@ -221,15 +251,15 @@ function App() {
       {/* Added Role Management View */}
       {userRole === 'pm' && activeTab === 'roles' && (
         <div className="max-w-7xl mx-auto px-6 py-6">
-           <ButtonBack onClick={() => setActiveTab('dashboard')} />
-           <RoleManagement />
+          <ButtonBack onClick={() => setActiveTab('dashboard')} />
+          <RoleManagement />
         </div>
       )}
 
       {userRole === 'pm' && activeTab === 'smart-allocate' && (
         <div className="w-full">
           <MemoryRouter>
-            <SmartAllocate 
+            <SmartAllocate
               onBack={() => setActiveTab('dashboard')}
               onNavigateToDelay={(data) => {
                 setAllocationData(data);
@@ -244,7 +274,7 @@ function App() {
       {userRole === 'pm' && activeTab === 'delay-prediction' && (
         <div className="w-full">
           <MemoryRouter initialEntries={[{ pathname: '/delay-prediction', state: { allocation: allocationData } }]}>
-            <DelayPrediction 
+            <DelayPrediction
               // Updated back navigation
               onBack={() => setActiveTab('allocation-simulation')}
               allocationDataProp={allocationData}
@@ -257,6 +287,9 @@ function App() {
       {userRole === 'hr' && activeTab === 'hr-home' && (
         <HRDashboard onNavigate={setActiveTab} />
       )}
+
+      {/* Voice Chatbot Widget - Available on all views */}
+      <VoiceChatbot />
     </div>
   )
 }
@@ -264,7 +297,7 @@ function App() {
 // Helper Component for internal navigation
 function ButtonBack({ onClick }: { onClick: () => void }) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className="mb-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-mono uppercase"
     >
@@ -299,10 +332,10 @@ function HRDashboard({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
           whileTap={{ scale: 0.98 }}
           className="group relative text-left p-8 border-2 border-foreground bg-gradient-to-br from-emerald-500/10 to-green-600/10 overflow-hidden"
         >
-          <motion.div 
+          <motion.div
             className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-green-600/20 opacity-0 group-hover:opacity-100 transition-opacity"
           />
-          
+
           <div className="relative z-10">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-4 bg-foreground text-background">
@@ -314,12 +347,12 @@ function HRDashboard({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
                 </span>
               </div>
             </div>
-            
+
             <h2 className="text-2xl font-bold mb-2">Employee Performance</h2>
             <p className="text-muted-foreground mb-4">
               AI-generated performance reports, appraisal metrics, and promotion readiness assessments based on real MongoDB data
             </p>
-            
+
             <div className="flex flex-wrap gap-2 mb-4">
               <span className="px-2 py-1 text-xs bg-muted">Commits Analysis</span>
               <span className="px-2 py-1 text-xs bg-muted">Task Completion</span>
@@ -344,10 +377,10 @@ function HRDashboard({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
           whileTap={{ scale: 0.98 }}
           className="group relative text-left p-8 border-2 border-foreground bg-gradient-to-br from-rose-500/10 to-pink-600/10 overflow-hidden"
         >
-          <motion.div 
+          <motion.div
             className="absolute inset-0 bg-gradient-to-br from-rose-500/20 to-pink-600/20 opacity-0 group-hover:opacity-100 transition-opacity"
           />
-          
+
           <div className="relative z-10">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-4 bg-foreground text-background">
@@ -359,12 +392,12 @@ function HRDashboard({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
                 </span>
               </div>
             </div>
-            
+
             <h2 className="text-2xl font-bold mb-2">Employee Retention</h2>
             <p className="text-muted-foreground mb-4">
               Track employee stress levels, workload factors, and retention risks with AI-driven wellness recommendations
             </p>
-            
+
             <div className="flex flex-wrap gap-2 mb-4">
               <span className="px-2 py-1 text-xs bg-muted">Stress Tracking</span>
               <span className="px-2 py-1 text-xs bg-muted">Workload Analysis</span>
