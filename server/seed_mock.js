@@ -39,9 +39,54 @@ const ROLE_TEMPLATES = {
     'DevOps Engineer': { hourly_rate: 70, seniority_level: 3 },
     'Project Manager': { hourly_rate: 85, seniority_level: 4 },
     'Product Manager': { hourly_rate: 80, seniority_level: 4 },
+    'AWS Solutions Architect': { hourly_rate: 90, seniority_level: 4 },
+    'AWS DevOps Engineer': { hourly_rate: 85, seniority_level: 3 },
+    'AWS Cloud Engineer': { hourly_rate: 80, seniority_level: 3 },
+    'AWS Backend Developer': { hourly_rate: 75, seniority_level: 3 },
 };
 
+// The 4 core team members with AWS roles
+const CORE_TEAM = [
+    { 
+        firstName: 'Aryan', 
+        lastName: 'Patel',
+        role: 'AWS Solutions Architect',
+        department: 'Cloud Engineering',
+        team: 'AWS Team',
+        skills: ['AWS', 'EC2', 'S3', 'Lambda', 'CloudFormation', 'React', 'TypeScript'],
+        jiraAccountId: '712020:f4133ad3-9b22-491e-8260-37d3ce9dcf04'
+    },
+    { 
+        firstName: 'Ritwik', 
+        lastName: 'Mohanty',
+        role: 'AWS Backend Developer',
+        department: 'Cloud Engineering',
+        team: 'AWS Team',
+        skills: ['AWS', 'Node.js', 'Python', 'DynamoDB', 'API Gateway', 'Lambda'],
+        jiraAccountId: '712020:88eb9ecb-d9f0-40ee-a5d0-9cbe35c6ac8f'
+    },
+    { 
+        firstName: 'Mohak', 
+        lastName: 'Sharma',
+        role: 'AWS DevOps Engineer',
+        department: 'Cloud Engineering',
+        team: 'AWS Team',
+        skills: ['AWS', 'Docker', 'Kubernetes', 'ECS', 'CI/CD', 'CloudWatch', 'Terraform'],
+        jiraAccountId: '712020:27f806c7-3623-4153-bb5b-0f60bb121dec'
+    },
+    { 
+        firstName: 'Manu', 
+        lastName: 'Singh',
+        role: 'AWS Cloud Engineer',
+        department: 'Cloud Engineering',
+        team: 'AWS Team',
+        skills: ['AWS', 'VPC', 'RDS', 'CloudFront', 'Route53', 'Security', 'IAM'],
+        jiraAccountId: '712020:a0876b3e-cc7b-403e-8aac-a8929a1c080e'
+    }
+];
+
 const TEAM_TEMPLATES = [
+    { name: 'AWS Team', department: 'Cloud Engineering', skills: ['AWS', 'Lambda', 'EC2', 'S3', 'CloudFormation', 'Terraform'] },
     { name: 'Frontend Team', department: 'Engineering', skills: ['React', 'TypeScript', 'CSS'] },
     { name: 'Backend Team', department: 'Engineering', skills: ['Node.js', 'Python', 'MongoDB'] }
 ];
@@ -162,7 +207,54 @@ async function seedDatabase() {
         const allUsers = [];
         let userIndex = 0;
 
+        // First, create the 4 core AWS team members
+        console.log('\n🌩️  Creating core AWS team members...');
+        const awsTeam = teams.find(t => t.name === 'AWS Team');
+        const awsTeamMembers = [];
+
+        for (const coreMember of CORE_TEAM) {
+            const username = generateUsername(coreMember.firstName, coreMember.lastName, userIndex);
+            const roleConfig = ROLE_TEMPLATES[coreMember.role];
+
+            const user = await User.create({
+                user_id: `mock:${username}`,
+                employee_id: generateEmployeeId(userIndex),
+                source: 'Mock',
+                source_user_id: username,
+                display_name: `${coreMember.firstName} ${coreMember.lastName}`,
+                email: generateEmail(username),
+                role: coreMember.role,
+                department: coreMember.department,
+                team: coreMember.team,
+                hourly_rate: roleConfig.hourly_rate,
+                seniority_level: roleConfig.seniority_level,
+                employment_type: 'Full-time',
+                skills: coreMember.skills,
+                jira_account_id: coreMember.jiraAccountId,
+            });
+
+            allUsers.push(user);
+            awsTeamMembers.push({
+                user_id: user._id,
+                role_in_team: coreMember.role,
+                allocation_percentage: 100
+            });
+
+            if (userIndex === 0) {
+                awsTeam.tech_lead_id = user._id;
+            }
+
+            console.log(`   ✅ Created: ${coreMember.firstName} ${coreMember.lastName} (${coreMember.role})`);
+            userIndex++;
+        }
+
+        awsTeam.members = awsTeamMembers;
+        await awsTeam.save();
+
+        // Create users for other teams (non-AWS)
         for (const team of teams) {
+            if (team.name === 'AWS Team') continue; // Skip AWS team, already created
+
             const teamRoles = ['Tech Lead', 'Senior Developer', 'Developer'];
             const teamMembers = [];
 

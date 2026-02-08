@@ -38,10 +38,15 @@ async function loadEmployeeData() {
   const data = {
     product_manager: productManager ? mapUser(productManager) : null,
     teams: {
+      aws: {
+        team_name: "AWS Team",
+        description: "Cloud infrastructure, AWS services, and cloud-native development",
+        members: users.filter(u => u.team === 'AWS Team').map(mapUser)
+      },
       tech: {
         team_name: "Tech Team",
         description: "Handles all technical development, architecture, and infrastructure tasks",
-        members: users.filter(u => u.team === 'tech').map(mapUser)
+        members: users.filter(u => u.team === 'tech' || u.team === 'Frontend Team' || u.team === 'Backend Team').map(mapUser)
       },
       marketing: {
         team_name: "Marketing Team",
@@ -105,6 +110,30 @@ const TASK_TEMPLATES = {
     editing: [
       { title: 'Content Creation & Documentation', required_skills: ['Technical Writing', 'Blog Writing', 'Content Editing'], complexity: 'medium', estimated_hours: 12 },
       { title: 'UX Copy & Review', required_skills: ['UX Writing', 'Microcopy', 'Proofreading'], complexity: 'low', estimated_hours: 8 }
+    ],
+    aws: [
+      { title: 'Design Cloud Architecture', required_skills: ['AWS', 'Cloud Architecture', 'CloudFormation', 'Solutions Design'], complexity: 'high', estimated_hours: 18 },
+      { title: 'Implement AWS Services', required_skills: ['AWS', 'Lambda', 'EC2', 'S3', 'API Gateway'], complexity: 'high', estimated_hours: 22 },
+      { title: 'Setup AWS DevOps Pipeline', required_skills: ['AWS', 'CI/CD', 'CloudFormation', 'Terraform', 'DevOps'], complexity: 'medium', estimated_hours: 14 },
+      { title: 'Configure Cloud Security', required_skills: ['AWS', 'IAM', 'Security', 'VPC', 'CloudWatch'], complexity: 'medium', estimated_hours: 12 }
+    ]
+  },
+  'aws_migration': {
+    aws: [
+      { title: 'Design AWS Migration Strategy', required_skills: ['AWS', 'Cloud Architecture', 'Solutions Design', 'Migration'], complexity: 'high', estimated_hours: 24 },
+      { title: 'Setup AWS Infrastructure', required_skills: ['AWS', 'EC2', 'VPC', 'RDS', 'CloudFormation'], complexity: 'high', estimated_hours: 28 },
+      { title: 'Migrate Backend Services', required_skills: ['AWS', 'Lambda', 'API Gateway', 'DynamoDB', 'Backend'], complexity: 'high', estimated_hours: 32 },
+      { title: 'Configure CI/CD Pipeline', required_skills: ['AWS', 'CodePipeline', 'CodeBuild', 'CI/CD', 'DevOps'], complexity: 'medium', estimated_hours: 16 },
+      { title: 'Setup Monitoring & Security', required_skills: ['AWS', 'CloudWatch', 'IAM', 'Security', 'VPC'], complexity: 'medium', estimated_hours: 14 }
+    ]
+  },
+  'aws_infrastructure': {
+    aws: [
+      { title: 'Design Cloud Infrastructure', required_skills: ['AWS', 'Cloud Architecture', 'EC2', 'VPC', 'Solutions Design'], complexity: 'high', estimated_hours: 20 },
+      { title: 'Provision AWS Resources', required_skills: ['AWS', 'Terraform', 'CloudFormation', 'Infrastructure as Code'], complexity: 'high', estimated_hours: 24 },
+      { title: 'Setup Serverless Backend', required_skills: ['AWS', 'Lambda', 'API Gateway', 'DynamoDB', 'Serverless'], complexity: 'high', estimated_hours: 26 },
+      { title: 'Configure Auto-scaling & Load Balancing', required_skills: ['AWS', 'ECS', 'ALB', 'Auto Scaling', 'DevOps'], complexity: 'medium', estimated_hours: 16 },
+      { title: 'Implement Security & Compliance', required_skills: ['AWS', 'IAM', 'Security Groups', 'CloudTrail', 'Security'], complexity: 'medium', estimated_hours: 12 }
     ]
   }
 };

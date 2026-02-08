@@ -13,7 +13,7 @@ const TeamSchema = new mongoose.Schema({
     // Organizational hierarchy
     department: { 
         type: String, 
-        enum: ['Engineering', 'Product', 'HR', 'Finance', 'Executive', 'Operations', 'QA', 'DevOps'],
+        enum: ['Engineering', 'Product', 'HR', 'Finance', 'Executive', 'Operations', 'QA', 'DevOps', 'Cloud Engineering'],
         required: true
     },
     

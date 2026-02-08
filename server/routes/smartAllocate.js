@@ -164,112 +164,26 @@ router.post('/employees', async (req, res) => {
 });
 
 /**
- * POST /api/smart-allocate/seed
- * Seeds the database with sample employees
+ * GET /api/smart-allocate/stats
+ * Returns statistics about employees in the database
  */
-router.post('/seed', async (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
-    // Sample employees data
-    const sampleEmployees = [
-      {
-        user_id: "smart_001",
-        employee_id: "SEMP001",
-        name: "Sarah Chen",
-        email: "sarah.chen@smartallocate.com",
-        role: "Senior Developer",
-        team: "tech",
-        skills: ["React", "TypeScript", "Vue", "CSS", "Tailwind", "Next.js"],
-        years_of_experience: 8,
-        free_slots_per_week: 25,
-        availability: "Free",
-        past_performance_score: 0.92,
-        capacity_hours_per_sprint: 40
-      },
-      {
-        user_id: "smart_002",
-        employee_id: "SEMP002",
-        name: "Marcus Johnson",
-        email: "marcus.johnson@smartallocate.com",
-        role: "Tech Lead",
-        team: "tech",
-        skills: ["Node.js", "Python", "Go", "PostgreSQL", "Redis", "GraphQL"],
-        years_of_experience: 12,
-        free_slots_per_week: 15,
-        availability: "Partially Free",
-        past_performance_score: 0.95,
-        capacity_hours_per_sprint: 40
-      },
-      {
-        user_id: "smart_003",
-        employee_id: "SEMP003",
-        name: "Elena Rodriguez",
-        email: "elena.rodriguez@smartallocate.com",
-        role: "Developer",
-        team: "tech",
-        skills: ["React", "Node.js", "MongoDB", "TypeScript", "AWS", "Docker"],
-        years_of_experience: 5,
-        free_slots_per_week: 30,
-        availability: "Free",
-        past_performance_score: 0.88,
-        capacity_hours_per_sprint: 40
-      },
-      {
-        user_id: "smart_004",
-        employee_id: "SEMP004",
-        name: "David Kim",
-        email: "david.kim@smartallocate.com",
-        role: "DevOps Engineer",
-        team: "tech",
-        skills: ["Kubernetes", "Docker", "AWS", "Terraform", "CI/CD", "Linux"],
-        years_of_experience: 7,
-        free_slots_per_week: 20,
-        availability: "Free",
-        past_performance_score: 0.90,
-        capacity_hours_per_sprint: 40
-      },
-      {
-        user_id: "smart_005",
-        employee_id: "SEMP005",
-        name: "Priya Patel",
-        email: "priya.patel@smartallocate.com",
-        role: "Developer",
-        team: "tech",
-        skills: ["Figma", "CSS", "React", "Prototyping", "Design Systems"],
-        years_of_experience: 6,
-        free_slots_per_week: 28,
-        availability: "Free",
-        past_performance_score: 0.91,
-        capacity_hours_per_sprint: 35
-      },
-      {
-        user_id: "smart_006",
-        employee_id: "SEMP006",
-        name: "James Wilson",
-        email: "james.wilson@smartallocate.com",
-        role: "Senior Developer",
-        team: "tech",
-        skills: ["Security", "Python", "AWS", "OAuth", "JWT", "OWASP"],
-        years_of_experience: 9,
-        free_slots_per_week: 22,
-        availability: "Free",
-        past_performance_score: 0.93,
-        capacity_hours_per_sprint: 40
-      }
-    ];
+    const totalUsers = await User.countDocuments({});
+    const availableUsers = await User.countDocuments({ availability: { $ne: 'Busy' } });
+    const avgExperience = await User.aggregate([
+      { $group: { _id: null, avgExp: { $avg: '$years_of_experience' } } }
+    ]);
 
-    // Insert or update employees
-    for (const emp of sampleEmployees) {
-      await User.findOneAndUpdate(
-        { user_id: emp.user_id },
-        emp,
-        { upsert: true, new: true }
-      );
-    }
-
-    res.json({ success: true, count: sampleEmployees.length });
+    res.json({ 
+      success: true, 
+      total: totalUsers,
+      available: availableUsers,
+      avgExperience: avgExperience[0]?.avgExp || 0
+    });
   } catch (error) {
-    console.error('Error seeding database:', error);
-    res.status(500).json({ error: 'Failed to seed database' });
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
 
