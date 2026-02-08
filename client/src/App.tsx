@@ -9,6 +9,7 @@ import FinanceROI from "@/pages/FinanceROI"
 import HRPerformance from "@/pages/HRPerformance"
 import HRRetention from "@/pages/HRRetention"
 import AllocationSimulation from "@/pages/AllocationSimulation"
+import MeetingTranscript from "@/pages/MeetingTranscript"
 import { VoiceChatbot } from "@/components/VoiceChatbot/VoiceChatbot"
 import { motion } from "framer-motion"
 import { ArrowLeft, Briefcase, Users, BarChart3, Brain, Heart, Activity, Database, CheckCircle, XCircle } from "lucide-react"
@@ -48,7 +49,7 @@ type Metrics = {
 
 type UserRole = 'pm' | 'hr'
 // Extended PMTab to include new features from the second code
-type PMTab = 'dashboard' | 'graph' | 'smart-allocate' | 'delay-prediction' | 'finance' | 'roles' | 'allocation-simulation'
+type PMTab = 'dashboard' | 'graph' | 'smart-allocate' | 'delay-prediction' | 'finance' | 'roles' | 'allocation-simulation' | 'meeting-transcript'
 type HRTab = 'hr-home' | 'hr-performance' | 'hr-retention'
 type Tab = PMTab | HRTab
 
@@ -62,6 +63,13 @@ function App() {
   const [userRole, setUserRole] = useState<UserRole>('pm')
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [allocationData, setAllocationData] = useState<AllocationData | null>(null)
+  
+  // For prefilling Smart Allocate from Meeting Transcript
+  const [prefillFeature, setPrefillFeature] = useState<{
+    feature: string;
+    description: string;
+    techStack: string[];
+  } | null>(null)
 
   // --- Effects Merged ---
 
@@ -150,6 +158,20 @@ function App() {
     return (
       <div className="fixed inset-0 z-50 overflow-auto">
         <HRRetention onBack={() => setActiveTab('hr-home')} />
+      </div>
+    )
+  }
+
+  if (activeTab === 'meeting-transcript') {
+    return (
+      <div className="fixed inset-0 z-50 overflow-auto bg-background">
+        <MeetingTranscript 
+          onBack={() => setActiveTab('dashboard')}
+          onNavigateToSmartAllocate={(feature) => {
+            setPrefillFeature(feature);
+            setActiveTab('smart-allocate');
+          }}
+        />
       </div>
     )
   }

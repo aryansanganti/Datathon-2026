@@ -25,7 +25,8 @@ import {
   Network,
   Workflow,
   LineChart,
-  Layers
+  Layers,
+  FileText
 } from "lucide-react"
 
 const API = "/api"
@@ -813,6 +814,15 @@ export function Dashboard({ onNavigate, githubConnected, onConnectGitHub }: Dash
               onClick={() => onNavigate('delay-prediction')}
               gradient="bg-gradient-to-br from-orange-500/10 to-red-500/10"
               delay={0.65}
+            />
+            <NavCard
+              title="Meeting Transcript"
+              description="Analyze transcripts to create tasks"
+              icon={<FileText className="w-6 h-6" />}
+              onClick={() => onNavigate('meeting-transcript')}
+              gradient="bg-gradient-to-br from-indigo-500/10 to-violet-500/10"
+              delay={0.7}
+              badge="NEW"
             />
           </div>
         </section>
