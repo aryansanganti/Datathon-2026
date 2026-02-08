@@ -14,10 +14,10 @@ const Task = require('./models/Task');
 
 // ============= TEAM MEMBERS =============
 const TEAM = [
-    { name: 'Aryan', accountId: '712020:f4133ad3-9b22-491e-8260-37d3ce9dcf04', role: 'frontend' },
-    { name: 'Ritwik', accountId: '712020:88eb9ecb-d9f0-40ee-a5d0-9cbe35c6ac8f', role: 'backend' },
-    { name: 'Mohak', accountId: '712020:27f806c7-3623-4153-bb5b-0f60bb121dec', role: 'devops' },
-    { name: 'Manu', accountId: '712020:a0876b3e-cc7b-403e-8aac-a8929a1c080e', role: 'qa' }
+    { name: 'Aryan', accountId: '712020:f4133ad3-9b22-491e-8260-37d3ce9dcf04', role: 'AWS Solutions Architect' },
+    { name: 'Ritwik', accountId: '712020:88eb9ecb-d9f0-40ee-a5d0-9cbe35c6ac8f', role: 'AWS Backend Developer' },
+    { name: 'Mohak', accountId: '712020:27f806c7-3623-4153-bb5b-0f60bb121dec', role: 'AWS DevOps Engineer' },
+    { name: 'Manu', accountId: '712020:a0876b3e-cc7b-403e-8aac-a8929a1c080e', role: 'AWS Cloud Engineer' }
 ];
 
 // ============= JIRA CONFIG =============
@@ -47,21 +47,30 @@ function log(message, type = 'info') {
 }
 
 function mapRoleToTeamMember(roleRequired) {
-    // Map task roles to team members
+    // Map task roles to team members (AWS-focused)
     const roleMap = {
-        'frontend': 'Aryan',
-        'senior frontend developer': 'Aryan',
-        'backend': 'Ritwik',
+        // AWS roles
+        'aws solutions architect': 'Aryan',
+        'aws architect': 'Aryan',
+        'solutions architect': 'Aryan',
+        'cloud architect': 'Aryan',
+        'aws backend developer': 'Ritwik',
+        'backend developer': 'Ritwik',
         'backend engineer': 'Ritwik',
-        'devops': 'Mohak',
+        'aws developer': 'Ritwik',
+        'aws devops engineer': 'Mohak',
         'devops engineer': 'Mohak',
-        'qa': 'Manu',
-        'qa engineer': 'Manu',
-        // Default mappings for other roles
-        'marketing manager': 'Aryan',
-        'social media specialist': 'Ritwik',
-        'digital marketer': 'Mohak',
-        'senior editor': 'Manu'
+        'devops': 'Mohak',
+        'cloud devops': 'Mohak',
+        'aws cloud engineer': 'Manu',
+        'cloud engineer': 'Manu',
+        'infrastructure engineer': 'Manu',
+        'sre': 'Manu',
+        // Generic AWS - distribute among team
+        'aws': 'Aryan',
+        // Fallback mappings
+        'frontend': 'Aryan',
+        'qa': 'Manu'
     };
 
     const normalizedRole = roleRequired?.toLowerCase() || '';
@@ -138,8 +147,8 @@ async function main() {
     let failed = 0;
 
     for (const task of tasks) {
-        // Skip if already synced
-        if (task.jira_issue_key) {
+        // Skip if already synced to Jira
+        if (task.synced_to_jira && task.jira_issue_key) {
             log(`⏭️  ${task.task_id}: Already synced as ${task.jira_issue_key}`, 'warn');
             continue;
         }

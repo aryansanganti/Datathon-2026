@@ -1,11 +1,11 @@
 import { EmployeeData, LLMAllocationResponse } from './types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/smart-allocate';
 
 // Fetch employees from MongoDB via API
 export const fetchEmployees = async (): Promise<EmployeeData[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/employees`);
+    const response = await fetch(`${API_BASE_URL}/smart-allocate/employees`);
     if (!response.ok) {
       throw new Error('Failed to fetch employees');
     }
@@ -19,7 +19,7 @@ export const fetchEmployees = async (): Promise<EmployeeData[]> => {
 // Fetch tasks from MongoDB via API
 export const fetchTasks = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/tasks`);
+    const response = await fetch(`${API_BASE_URL}/smart-allocate/tasks`);
     if (!response.ok) {
       throw new Error('Failed to fetch tasks');
     }
@@ -33,7 +33,7 @@ export const fetchTasks = async () => {
 // Save allocation results to MongoDB
 export const saveAllocations = async (allocations: LLMAllocationResponse['allocations']) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/allocations`, {
+    const response = await fetch(`${API_BASE_URL}/smart-allocate/allocations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

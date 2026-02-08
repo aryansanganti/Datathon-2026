@@ -36,9 +36,8 @@ router.post('/save-allocation', async (req, res) => {
         const deadline = new Date();
         deadline.setDate(deadline.getDate() + (deadline_weeks || 4) * 7);
 
-        // Create task document
-        const task = new Task({
-          task_id: taskData.id,
+        // Create or update task document using upsert
+        const taskDoc = {
           title: taskData.title,
           description: taskData.description || '',
           role_required: roleRequired,
@@ -47,11 +46,16 @@ router.post('/save-allocation', async (req, res) => {
           estimated_hours: taskData.estimated_hours,
           status: allocatedUser ? 'allocated' : 'pending',
           allocated_to: allocatedUser ? allocatedUser._id : null,
-          jira_issue_key: `PROJ-${taskData.id.split('-').pop()}`,
           synced_to_jira: false,
-        });
+        };
 
-        await task.save();
+        // Use findOneAndUpdate with upsert to avoid duplicate key errors
+        const task = await Task.findOneAndUpdate(
+          { task_id: taskData.id },
+          { $set: taskDoc },
+          { upsert: true, new: true, runValidators: true }
+        );
+
         savedTasks.push(task);
       } catch (err) {
         console.error(`Error saving task ${taskData.id}:`, err);
@@ -74,26 +78,43 @@ router.post('/save-allocation', async (req, res) => {
 
 /**
  * Helper function to determine role from skills
+ * Returns only allowed enum values: frontend, backend, qa, devops
  */
 function determineRole(skills, description) {
   const skillsStr = skills.join(' ').toLowerCase();
   const descStr = (description || '').toLowerCase();
   const combined = `${skillsStr} ${descStr}`;
 
-  if (combined.includes('react') || combined.includes('vue') || combined.includes('frontend') || combined.includes('ui') || combined.includes('css')) {
+  // Check for frontend indicators
+  if (combined.includes('react') || combined.includes('vue') || combined.includes('angular') || 
+      combined.includes('frontend') || combined.includes('ui') || combined.includes('css') ||
+      combined.includes('html') || combined.includes('tailwind')) {
     return 'frontend';
   }
-  if (combined.includes('node') || combined.includes('python') || combined.includes('backend') || combined.includes('api') || combined.includes('database')) {
-    return 'backend';
-  }
-  if (combined.includes('test') || combined.includes('qa') || combined.includes('quality')) {
+  
+  // Check for QA/testing indicators
+  if (combined.includes('test') || combined.includes('qa') || combined.includes('quality') ||
+      combined.includes('selenium') || combined.includes('jest') || combined.includes('cypress')) {
     return 'qa';
   }
-  if (combined.includes('devops') || combined.includes('docker') || combined.includes('kubernetes') || combined.includes('ci/cd')) {
+  
+  // Check for DevOps indicators (including AWS DevOps)
+  if (combined.includes('devops') || combined.includes('docker') || combined.includes('kubernetes') ||
+      combined.includes('ci/cd') || combined.includes('terraform') || combined.includes('cloudformation') ||
+      combined.includes('infrastructure') || combined.includes('deployment')) {
     return 'devops';
   }
   
-  return 'backend'; // Default
+  // Check for backend indicators (including AWS backend services)
+  if (combined.includes('backend') || combined.includes('api') || combined.includes('database') ||
+      combined.includes('node') || combined.includes('python') || combined.includes('java') ||
+      combined.includes('lambda') || combined.includes('dynamodb') || combined.includes('postgresql') ||
+      combined.includes('mongodb') || combined.includes('server') || combined.includes('aws')) {
+    return 'backend';
+  }
+  
+  // Default to backend for unmatched cases
+  return 'backend';
 }
 
 /**
